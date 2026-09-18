@@ -6,11 +6,9 @@ import type {
   Source,
 } from "./types";
 
-// Frontend calls backend directly in local dev to avoid rewrite mismatch.
-// NEXT_PUBLIC_API_URL should be like: http://127.0.0.1:8000
-const BACKEND_BASE =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
-const API_BASE = `${BACKEND_BASE.replace(/\/$/, "")}/api/v1`;
+// All API calls go through Next.js rewrites at /api/backend/*
+// (configured in next.config.mjs → forwards to FastAPI /api/v1/*)
+const API_BASE = "/api/backend";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -72,6 +70,8 @@ export interface StreamChatOptions {
   question: string;
   chatHistory: { role: "user" | "assistant"; content: string }[];
   topK?: number;
+  filterDocType?: string;
+  filterYear?: string;
   signal?: AbortSignal;
   onSources: (sources: Source[]) => void;
   onToken: (token: string) => void;
@@ -87,6 +87,8 @@ export async function streamChat(opts: StreamChatOptions): Promise<void> {
       question: opts.question,
       chat_history: opts.chatHistory,
       top_k: opts.topK ?? 5,
+      filter_doc_type: opts.filterDocType || null,
+      filter_year: opts.filterYear || null,
     }),
     signal: opts.signal,
   });

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pickle
 import threading
-from typing import List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from langchain_core.documents import Document
 
@@ -76,7 +76,21 @@ def get_corpus_size() -> int:
     return len(_load_corpus())
 
 
-def search(query: str, top_k: int = 5) -> List[Tuple[Document, float]]:
+def _matches_filter(doc: Document, filter_metadata: Optional[Dict[str, Any]]) -> bool:
+    if not filter_metadata:
+        return True
+    meta = doc.metadata or {}
+    for key, value in filter_metadata.items():
+        if str(meta.get(key, "")).strip() != str(value).strip():
+            return False
+    return True
+
+
+def search(
+    query: str,
+    top_k: int = 5,
+    filter_metadata: Optional[Dict[str, Any]] = None,
+) -> List[Tuple[Document, float]]:
     index = _load_index()
     corpus = _load_corpus()
 
@@ -88,5 +102,10 @@ def search(query: str, top_k: int = 5) -> List[Tuple[Document, float]]:
         return []
 
     scores = index.get_scores(tokens)
-    ranked = sorted(enumerate(scores), key=lambda x: x[1], reverse=True)[:top_k]
-    return [(corpus[i], float(s)) for i, s in ranked if s > 0]
+    ranked = sorted(enumerate(scores), key=lambda x: x[1], reverse=True)
+    filtered = [
+        (corpus[i], float(s))
+        for i, s in ranked
+        if s > 0 and _matches_filter(corpus[i], filter_metadata)
+    ]
+    return filtered[:top_k]

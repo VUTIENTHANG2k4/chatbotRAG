@@ -26,7 +26,7 @@ Chatbot RAG hỏi đáp pháp luật lao động VN — giúp NLĐ & doanh nghi�
 
 ## Trạng thái hiện tại
 
-**Cập nhật:** 2026-09-18 · **Giai đoạn:** Phase 2 · **Bước hiện tại:** Bước 5 ⏳ TIẾP THEO
+**Cập nhật:** 2026-09-18 · **Giai đoạn:** Phase 3 · **Bước hiện tại:** Bước 6 ⏳ TIẾP THEO
 
 ### Kho dữ liệu
 - `backend/data/legal_documents/core/18-vbhn-vpqh.pdf` — VBHN Bộ luật Lao động (scan)
@@ -44,7 +44,7 @@ Chatbot RAG hỏi đáp pháp luật lao động VN — giúp NLĐ & doanh nghi�
 - [x] Retrieval 10/10 PASS, hybrid search hoạt động đúng (Qdrant API fixed)
 - [x] System prompt chuyên biệt cho HĐLĐ — cấu trúc 3 phần, 3/3 test PASS
 - [x] Câu hỏi gợi ý đúng domain lao động (HĐLĐ)
-- [ ] Chưa có filter theo loại văn bản / năm
+- [x] Có filter theo loại văn bản / năm (UI + API + retrieval)
 - [ ] Chưa có chế độ đối chiếu quy định
 
 ---
@@ -58,8 +58,8 @@ Chatbot RAG hỏi đáp pháp luật lao động VN — giúp NLĐ & doanh nghi�
 | 2 | Kiểm tra retrieval (test set 10 câu) | 1 | ✅ |
 | 3 | Tối ưu system prompt HĐLĐ | 2 | ✅ |
 | 4 | Cập nhật UI (gợi ý câu hỏi, header) | 2 | ✅ |
-| 5 | Bổ sung filter lọc văn bản | 2 | ⏳ |
-| 6 | Chế độ đối chiếu quy định | 3 | ⬜ |
+| 5 | Bổ sung filter lọc văn bản | 2 | ✅ |
+| 6 | Chế độ đối chiếu quy định | 3 | ⏳ |
 | 7 | Metadata hiệu lực văn bản | 3 | ⬜ |
 | 8 | Đánh giá & fine-tune (golden set) | 3 | ⬜ |
 
@@ -69,11 +69,11 @@ Chatbot RAG hỏi đáp pháp luật lao động VN — giúp NLĐ & doanh nghi�
 
 | Bước | Ngày | Trạng thái | Tóm tắt | Chi tiết |
 |------|------|-----------|---------|---------|
-| 0 | 2026-09-18 | ✅ | Tạo AGENTS.md + 5 rule files trong `.cursor/rules/` | [→](docs/agent-history/2026-09/step-00.md) |
 | 1 | 2026-09-18 | ✅ | Hỗ trợ PDF scan/ảnh/đệ quy; auto-ingest startup; endpoint /ingest-disk | [→](docs/agent-history/2026-09/step-01.md) |
 | 2 | 2026-09-18 | ✅ | 10/10 PASS; fix Qdrant API query_points(); RRF hybrid xác nhận OK | [→](docs/agent-history/2026-09/step-02.md) |
 | 3 | 2026-09-18 | ✅ | Prompt HĐLĐ 3 phần; fix localhost→127.0.0.1; đổi 7b→3b; 3/3 PASS | [→](docs/agent-history/2026-09/step-03.md) |
 | 4 | 2026-09-18 | ✅ | Cập nhật UI domain HĐLĐ; bộ câu hỏi gợi ý mới; lint/build PASS | [→](docs/agent-history/2026-09/step-04.md) |
+| 5 | 2026-09-18 | ✅ | Filter doc_type/year end-to-end (UI/API/RAG); lint/build/compile PASS | [→](docs/agent-history/2026-09/step-05.md) |
 
 > Lịch sử đầy đủ → [`docs/agent-history/INDEX.md`](docs/agent-history/INDEX.md)
 
@@ -91,6 +91,7 @@ Chatbot RAG hỏi đáp pháp luật lao động VN — giúp NLĐ & doanh nghi�
 | 2026-09-18 | Auto-ingest dùng daemon thread (không async) | ingest_all() là sync + chặn, không dùng asyncio |
 | 2026-09-18 | Đổi model 7b → 3b | 7b crash OOM trên máy local; 3b đủ chất lượng cho domain pháp lý |
 | 2026-09-18 | OLLAMA_BASE_URL=127.0.0.1 thay vì localhost | localhost→IPv6→Docker/WSL2 intercept; 127.0.0.1→Ollama thật có 3b |
+| 2026-09-18 | Filter metadata áp dụng đồng thời cho vector + BM25 | Tránh lệch kết quả retrieval khi chỉ lọc một nhánh |
 
 ---
 

@@ -43,7 +43,7 @@ def hybrid_search(
 
     query_vec = embed_query(query)
     vector_hits = similarity_search(query_vec, top_k=top_k * 2, filter_metadata=filter_metadata)
-    bm25_hits = bm25_search(query, top_k=top_k * 2)
+    bm25_hits = bm25_search(query, top_k=top_k * 2, filter_metadata=filter_metadata)
 
     fused = reciprocal_rank_fusion(
         [[d for d, _ in vector_hits], [d for d, _ in bm25_hits]],

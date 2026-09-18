@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import AsyncIterator
+from typing import AsyncIterator, Dict
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
@@ -23,6 +23,15 @@ def _ensure_indexed():
         )
 
 
+def _build_filter_metadata(req: ChatRequest) -> Dict[str, str]:
+    filter_metadata: Dict[str, str] = {}
+    if req.filter_doc_type:
+        filter_metadata["doc_type"] = req.filter_doc_type
+    if req.filter_year:
+        filter_metadata["year"] = req.filter_year
+    return filter_metadata
+
+
 @router.post("", response_model=ChatResponse)
 async def chat(req: ChatRequest) -> ChatResponse:
     """Synchronous Q&A — returns full answer + sources in one response."""
@@ -34,6 +43,7 @@ async def chat(req: ChatRequest) -> ChatResponse:
             provider=req.provider,
             top_k=req.top_k,
             chat_history=[m.model_dump() for m in req.chat_history],
+            filter_metadata=_build_filter_metadata(req),
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -63,6 +73,7 @@ async def chat_stream(req: ChatRequest):
                 provider=req.provider,
                 top_k=req.top_k,
                 chat_history=[m.model_dump() for m in req.chat_history],
+                filter_metadata=_build_filter_metadata(req),
             )
 
             yield _sse("sources", json.dumps(sources, ensure_ascii=False))

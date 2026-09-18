@@ -8,7 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { _historyToApi, streamChat } from "@/lib/api";
+import { _historyToApi, listDocuments, streamChat } from "@/lib/api";
 import type { ChatMessage } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import MessageBubble from "./MessageBubble";
@@ -30,9 +30,46 @@ export default function ChatPanel({ refreshKey }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
+  const [filterDocType, setFilterDocType] = useState("");
+  const [filterYear, setFilterYear] = useState("");
+  const [docTypes, setDocTypes] = useState<string[]>([]);
+  const [years, setYears] = useState<string[]>([]);
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+
+  const loadFilters = useCallback(async () => {
+    try {
+      const data = await listDocuments();
+      const nextDocTypes = Array.from(
+        new Set(
+          data.documents
+            .map((d) => (d.doc_type || "").trim())
+            .filter(Boolean),
+        ),
+      ).sort((a, b) => a.localeCompare(b, "vi"));
+
+      const nextYears = Array.from(
+        new Set(
+          data.documents
+            .map((d) => (d.year || "").trim())
+            .filter(Boolean),
+        ),
+      ).sort((a, b) => Number(b) - Number(a));
+
+      setDocTypes(nextDocTypes);
+      setYears(nextYears);
+      if (filterDocType && !nextDocTypes.includes(filterDocType)) {
+        setFilterDocType("");
+      }
+      if (filterYear && !nextYears.includes(filterYear)) {
+        setFilterYear("");
+      }
+    } catch {
+      setDocTypes([]);
+      setYears([]);
+    }
+  }, [filterDocType, filterYear]);
 
   // Load persisted history once
   useEffect(() => {
@@ -63,6 +100,10 @@ export default function ChatPanel({ refreshKey }: Props) {
     taRef.current.style.height = "auto";
     taRef.current.style.height = `${Math.min(taRef.current.scrollHeight, 200)}px`;
   }, [input]);
+
+  useEffect(() => {
+    loadFilters();
+  }, [loadFilters, refreshKey]);
 
   const stopStreaming = () => {
     abortRef.current?.abort();
@@ -99,6 +140,8 @@ export default function ChatPanel({ refreshKey }: Props) {
         question,
         chatHistory: history,
         topK: 5,
+        filterDocType,
+        filterYear,
         signal: ctrl.signal,
         onSources: (sources) => {
           setMessages((prev) => {
@@ -151,7 +194,7 @@ export default function ChatPanel({ refreshKey }: Props) {
         },
       });
     },
-    [messages, streaming],
+    [messages, streaming, filterDocType, filterYear],
   );
 
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -181,14 +224,44 @@ export default function ChatPanel({ refreshKey }: Props) {
             ? "Đặt câu hỏi pháp luật để bắt đầu"
             : `${messages.filter((m) => m.role === "user").length} câu hỏi trong phiên này`}
         </p>
-        <button
-          onClick={clearChat}
-          disabled={!messages.length || streaming}
-          className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 hover:text-red-600 disabled:opacity-40 disabled:hover:text-slate-600"
-        >
-          <Trash2 size={13} />
-          Xóa hội thoại
-        </button>
+        <div className="flex items-center gap-2">
+          <select
+            value={filterDocType}
+            onChange={(e) => setFilterDocType(e.target.value)}
+            disabled={streaming || docTypes.length === 0}
+            className="h-8 rounded-md border border-slate-300 bg-white px-2 text-xs text-slate-700 disabled:opacity-50"
+            title="Lọc theo loại văn bản"
+          >
+            <option value="">Tất cả loại VB</option>
+            {docTypes.map((docType) => (
+              <option key={docType} value={docType}>
+                {docType}
+              </option>
+            ))}
+          </select>
+          <select
+            value={filterYear}
+            onChange={(e) => setFilterYear(e.target.value)}
+            disabled={streaming || years.length === 0}
+            className="h-8 rounded-md border border-slate-300 bg-white px-2 text-xs text-slate-700 disabled:opacity-50"
+            title="Lọc theo năm ban hành"
+          >
+            <option value="">Tất cả năm</option>
+            {years.map((year) => (
+              <option key={year} value={year}>
+                {year}
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={clearChat}
+            disabled={!messages.length || streaming}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 hover:text-red-600 disabled:opacity-40 disabled:hover:text-slate-600"
+          >
+            <Trash2 size={13} />
+            Xóa hội thoại
+          </button>
+        </div>
       </div>
 
       {/* Messages */}

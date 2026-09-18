@@ -26,6 +26,14 @@ class ChatRequest(BaseModel):
     chat_history: List[ChatMessage] = Field(default_factory=list)
     top_k: int = Field(default=5, ge=1, le=20)
     provider: Optional[str] = Field(default=None, description="ollama | openai | gemini")
+    filter_doc_type: Optional[str] = Field(
+        default=None,
+        description="Lọc theo loại văn bản, ví dụ: Bộ luật, Nghị định, Thông tư",
+    )
+    filter_year: Optional[str] = Field(
+        default=None,
+        description="Lọc theo năm văn bản, ví dụ: 2019, 2020",
+    )
 
 
 class ChatResponse(BaseModel):
