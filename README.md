@@ -1,82 +1,114 @@
-# Legal RAG — Vietnamese Legal Document Q&A
+﻿# ChatbotRAG — Hỏi đáp pháp luật lao động Việt Nam
 
-Production-grade RAG (Retrieval-Augmented Generation) system for Vietnamese legal documents.
-**Fully local**: Ollama LLM + HuggingFace embeddings + Qdrant vector DB + BM25 keyword search.
+Dự án RAG cho tra cứu, đối chiếu và hỏi đáp về quy định lao động Việt Nam bằng tiếng Việt. Hệ thống chạy hoàn toàn cục bộ và ưu tiên dữ liệu pháp luật, với tìm kiếm hybrid giữa vector và từ khóa.
 
+## Tính năng hiện tại
+
+- Tìm kiếm hybrid: Qdrant vector + BM25 keyword qua Reciprocal Rank Fusion (RRF)
+- Hỏi đáp streaming theo SSE qua API backend
+- Tải lên tài liệu: PDF, DOCX, TXT, PNG, JPG, TIFF, BMP, WEBP
+- OCR cho PDF scan / hình ảnh
+- Quét đệ quy thư mục dữ liệu và ingest tự động khi khởi động
+- Lọc theo loại văn bản và năm trong truy vấn
+- Giao diện web Next.js hiển thị danh sách tài liệu, upload, chat và nguồn trích dẫn
+- Hỗ trợ metadata như doc_type, year, title và chunk_count
+
+## Kiến trúc
+
+```text
+Frontend (Next.js 14)  <--->  FastAPI backend
+                                |
+                                +--> Qdrant (vector DB)
+                                +--> BM25 index (keyword)
+                                +--> Ollama (LLM local)
+                                +--> HuggingFace sentence-transformers
 ```
-┌────────────────────────────┐         ┌────────────────────────┐
-│  Next.js 14 Frontend       │  HTTP   │  FastAPI Backend       │
-│  (Tailwind, App Router)    │ ◄─────► │  (LangChain, Pydantic) │
-└────────────────────────────┘  /api   └───────────┬────────────┘
-                                                   │
-                          ┌────────────────────────┼────────────────────────┐
-                          ▼                        ▼                        ▼
-                   ┌────────────┐           ┌────────────┐           ┌────────────┐
-                   │  Qdrant    │           │   BM25     │           │  Ollama    │
-                   │ (vectors)  │           │ (keyword)  │           │ (local LLM)│
-                   └────────────┘           └────────────┘           └────────────┘
-                          └─────── RRF Fusion ───────┘                      ▲
-                                                                            │
-                                                              HuggingFace embeddings
-```
 
-## Highlights
+## Stack hiện tại
 
-- **100% local & private** — no API keys required by default
-- **Hybrid Search** — Qdrant vector + BM25 keyword fused via Reciprocal Rank Fusion
-- **Streaming UI** — token-by-token SSE responses
-- **Vietnamese-aware** — chunking by `Chương / Mục / Điều / Khoản`, `vietnamese-sbert` embeddings
-- **Source citations** — every answer cites the chunks it used (with snippet + page + RRF score)
-- **Pluggable** — swap Ollama for OpenAI / Gemini, or `vietnamese-sbert` for any HF model
+- Frontend: Next.js 14 + TypeScript + Tailwind CSS
+- Backend: FastAPI + Pydantic + LangChain
+- LLM: Ollama (`qwen2.5:3b` mặc định, đã thay cho 7b để tránh OOM trên máy local)
+- Embedding: `keepitreal/vietnamese-sbert`
+- Vector database: Qdrant local file-based
+- Search: BM25 + RRF
+- OCR: Tesseract + Poppler cho file scan/PDF ảnh
 
-## Repo layout
+## Cấu trúc repo
 
-```
+```text
 chatbotRAG/
-├── backend/                # FastAPI service (Python 3.11)
-├── frontend/               # Next.js 14 app (TypeScript)
-├── docker-compose.yml      # ollama + backend + frontend
-└── README.md
+├── AGENTS.md
+├── README.md
+├── docker-compose.yml
+├── backend/
+│   ├── app/
+│   ├── data/
+│   ├── storage/
+│   ├── requirements.txt
+│   ├── Dockerfile
+│   └── README.md
+├── frontend/
+│   ├── src/
+│   ├── package.json
+│   ├── next.config.mjs
+│   └── Dockerfile
+├── docs/
+│   └── agent-history/
+├── tests/
+└── storage/
 ```
 
-## Quick start (Docker — recommended)
+## Yêu cầu môi trường
 
-> **Prerequisites:** Docker Desktop installed. ~10 GB free disk for Ollama + models.
+- Docker Desktop (nếu chạy theo Docker Compose)
+- Python 3.11 cho dev local
+- Ollama đã cài đặt và model `qwen2.5:3b` được pull
+- Tesseract + Poppler nếu cần OCR PDF scan/ảnh trên Windows
+
+## Chạy nhanh với Docker
 
 ```bash
-# 1. Start everything
 docker compose up -d --build
-
-# 2. Pull the LLM model into the running Ollama container
-docker exec legal-rag-ollama ollama pull qwen2.5:7b
-
-# 3. Open the app
-#    Frontend: http://localhost:3000
-#    Backend docs: http://localhost:8000/docs
 ```
 
-To stop:
+Sau khi khởi động:
+
+- Frontend: http://localhost:3000
+- Backend docs: http://localhost:8000/docs
+- Backend port container: `8001:8000` trong Compose
+
+Nếu chưa có model:
 
 ```bash
-docker compose down              # keep data
-docker compose down -v           # also wipe volumes (Ollama models, vector_db, etc.)
+docker exec legal-rag-ollama ollama pull qwen2.5:3b
 ```
 
-## Local dev (no Docker)
+Dừng dịch vụ:
+
+```bash
+docker compose down
+# hoặc xóa dữ liệu local:
+docker compose down -v
+```
+
+## Chạy local mà không dùng Docker
 
 ### Backend
 
 ```bash
 cd backend
 python -m venv .venv
-.\.venv\Scripts\activate         # Windows
-# source .venv/bin/activate      # macOS/Linux
-pip install -r requirements.txt
-copy .env.example .env           # adjust if needed
+# Windows
+.\.venv\Scripts\activate
+# Linux/macOS
+# source .venv/bin/activate
 
-# Make sure Ollama is running locally and a model is pulled:
-#   ollama pull qwen2.5:7b
-#   ollama serve
+pip install -r requirements.txt
+
+# Khởi động Ollama nếu chưa chạy
+# ollama serve
+# ollama pull qwen2.5:3b
 
 uvicorn app.main:app --reload --port 8000
 ```
@@ -85,50 +117,44 @@ uvicorn app.main:app --reload --port 8000
 
 ```bash
 cd frontend
-copy .env.example .env.local     # NEXT_PUBLIC_API_URL=http://localhost:8000
 npm install
-npm run dev                      # http://localhost:3000
+npm run dev
 ```
 
-## Recommended Ollama models
+Mở http://localhost:3000
 
-| Model            | Size  | Quality | Notes                                |
-|------------------|-------|---------|--------------------------------------|
-| `qwen2.5:7b`     | ~4 GB | High    | Best Vietnamese performance, default |
-| `qwen2.5:3b`     | ~2 GB | Good    | Faster, lighter for low RAM          |
-| `gemma2:9b`      | ~5 GB | High    | Strong reasoning                     |
-| `llama3.1:8b`    | ~5 GB | Good    | Less Vietnamese fluency              |
+## Tạo dữ liệu và ingest
 
-Change `OLLAMA_MODEL` in `backend/.env` (or `docker-compose.yml`) to switch.
+Đặt tài liệu vào thư mục `backend/data/` hoặc dùng API upload. Hệ thống có tính năng quét đệ quy và tự ingest khi khởi động.
 
-## Hardware
+Các endpoint chính:
 
-- **Minimum:** 8 GB RAM, no GPU (CPU works but slow)
-- **Recommended:** 16 GB RAM + GPU (Ollama uses CUDA / Metal automatically)
+- `GET /api/v1/health` — kiểm tra service
+- `GET /api/v1/documents` — danh sách tài liệu đã index
+- `POST /api/v1/documents/upload` — upload file đơn/lớn
+- `POST /api/v1/documents/ingest-disk` — quét toàn bộ thư mục `data/` và nạp lại
+- `DELETE /api/v1/documents/{source}` — xóa tài liệu khỏi index
+- `POST /api/v1/chat/stream` — hỏi đáp streaming
 
-## Configuration cheatsheet
+## Cấu hình quan trọng
 
-Backend `.env` keys (see [backend/.env.example](backend/.env.example) for all):
+Các biến môi trường chính của backend: `LLM_PROVIDER`, `OLLAMA_MODEL`, `OLLAMA_BASE_URL`, `EMBED_PROVIDER`, `HF_EMBED_MODEL`, `HF_DEVICE`, `TOP_K`, `RRF_K`.
 
-| Key                  | Default                            | Notes                                |
-|----------------------|------------------------------------|--------------------------------------|
-| `LLM_PROVIDER`       | `ollama`                           | `ollama` / `openai` / `gemini`       |
-| `OLLAMA_MODEL`       | `qwen2.5:7b`                       | Any model pulled in Ollama           |
-| `EMBED_PROVIDER`     | `huggingface`                      | `huggingface` / `openai`             |
-| `HF_EMBED_MODEL`     | `keepitreal/vietnamese-sbert`      | Any sentence-transformers model      |
-| `CHUNK_SIZE`         | `512`                              | Characters per chunk                 |
-| `TOP_K`              | `5`                                | Retrieved chunks per query           |
-| `RRF_K`              | `60`                               | RRF fusion constant                  |
+Mặc định hiện tại của dự án:
 
-## API summary
+- `OLLAMA_MODEL=qwen2.5:3b`
+- `EMBED_PROVIDER=huggingface`
+- `HF_EMBED_MODEL=keepitreal/vietnamese-sbert`
+- `TOP_K=5`
+- `RRF_K=60`
 
-See [backend/README.md](backend/README.md) for full details. Key endpoints:
+## Lưu ý thực tế
 
-- `POST /api/v1/documents/upload` — upload PDF/DOCX/TXT
-- `GET  /api/v1/documents` — list indexed documents
-- `DELETE /api/v1/documents/{source}` — remove a document
-- `POST /api/v1/chat/stream` — streaming Q&A (SSE)
+- Thư mục `data/` được quét đệ quy khi backend khởi động; không cần gọi ingest thủ công nếu đã đặt file sẵn.
+- Hệ thống hỗ trợ PDF scan / ảnh khi có OCR cài đặt trên máy: Tesseract + Poppler.
+- Giao diện hiện tại có sidebar tài liệu, bộ lọc doc_type/year, upload và refresh trạng thái ngay sau khi thay đổi index.
+- Dự án tập trung vào pháp luật lao động Việt Nam, nên chunking và prompt đã tối ưu theo domain hiện tại.
 
-## License
+## Giấy phép
 
-MIT
+Mã nguồn dự án được sử dụng theo giấy phép tương ứng của repo; xem chi tiết trong các file hiện có nếu cần công bố chính thức.
