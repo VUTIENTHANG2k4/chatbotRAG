@@ -1,0 +1,68 @@
+---
+description: Quy tắc lập trình frontend Next.js 14 + Tailwind
+globs: frontend/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Frontend — Quy tắc lập trình
+
+## Cấu trúc component
+
+```
+frontend/src/
+├── app/
+│   ├── page.tsx         ← Layout chính: Header + DocumentSidebar + ChatPanel
+│   └── layout.tsx
+├── components/
+│   ├── ChatPanel.tsx    ← Chat UI, SUGGESTED_QUESTIONS — cần cập nhật domain
+│   ├── MessageBubble.tsx
+│   ├── SourceCard.tsx   ← Hiển thị nguồn trích dẫn
+│   ├── DocumentSidebar.tsx← Upload + danh sách văn bản
+│   ├── UploadZone.tsx
+│   └── Header.tsx
+└── lib/
+    ├── api.ts           ← Tất cả API calls
+    └── types.ts         ← TypeScript types
+```
+
+## SUGGESTED_QUESTIONS — phải đúng domain HĐLĐ
+
+File: `frontend/src/components/ChatPanel.tsx`
+
+```typescript
+// ✅ ĐÚNG — câu hỏi về hợp đồng lao động
+const SUGGESTED_QUESTIONS = [
+  "Hợp đồng lao động không xác định thời hạn có những quyền lợi gì?",
+  "Quy định thời gian thử việc theo Bộ luật Lao động 2019?",
+  "Người lao động bị sa thải trái luật được bồi thường như thế nào?",
+  "Hợp đồng lao động có điều khoản nào bắt buộc phải có?",
+];
+
+// ❌ SAI — câu hỏi đa lĩnh vực không liên quan HĐLĐ
+// "Quy định về quyền sở hữu trí tuệ..."
+// "Điều kiện kết hôn..."
+```
+
+## API call conventions
+
+File: `frontend/src/lib/api.ts`
+
+- Mọi endpoint đi qua `API_BASE = "/api/backend"` (Next.js rewrite → FastAPI)
+- Streaming dùng SSE (`streamChat`) — không dùng polling
+- Xử lý abort signal cho mọi streaming request
+- Lỗi phải được hiển thị qua `onError` callback, không dùng `alert()`
+
+## Types
+
+File: `frontend/src/lib/types.ts`
+
+Khi thêm field mới vào backend schema, cập nhật đồng thời type tương ứng ở đây.  
+Ví dụ khi thêm filter: thêm `filter_doc_type?: string` vào `ChatRequest` interface.
+
+## UI/UX quy tắc
+
+- Màu brand: `brand-600` (xanh chủ đạo) — không thay đổi
+- `SourceCard`: luôn hiển thị `doc_type`, `year`, `snippet`, `rrf_score`
+- Disclaimer bắt buộc ở footer input:
+  > "Hệ thống chỉ trả lời dựa trên các tài liệu đã được nạp. Câu trả lời không thay thế tư vấn pháp lý chuyên nghiệp."
+- Streaming phải có nút Stop (StopCircle icon)

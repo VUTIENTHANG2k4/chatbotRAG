@@ -1,0 +1,122 @@
+---
+description: Quy trình agent — bắt buộc test sau mỗi bước — cập nhật AGENTS.md — áp dụng mọi phiên
+alwaysApply: true
+---
+
+# Quy trình làm việc của Agent
+
+## 1. Khi bắt đầu phiên
+
+1. **Đọc `AGENTS.md`** — xem Trạng thái hiện tại và bước đang làm
+2. Nếu cần chi tiết bước cũ → đọc `docs/agent-history/INDEX.md` rồi vào file tương ứng
+3. Không hỏi lại những gì đã ghi trong AGENTS.md
+
+---
+
+## 2. Quy trình sau khi hoàn thành bước
+
+### Bước A — Chạy Test Checklist (BẮT BUỘC)
+
+Trước khi đánh dấu bước HOÀN THÀNH, agent PHẢI tự kiểm tra theo checklist phù hợp với loại bước:
+
+#### Bước liên quan Backend (Python)
+```
+[ ] File mới/sửa không có lỗi import / syntax
+[ ] API endpoint trả về đúng schema (gọi thử hoặc kiểm tra code)
+[ ] Không làm hỏng endpoint hiện có (health, documents, chat)
+[ ] Logger dùng get_logger(__name__), không dùng print()
+[ ] Có type hints đầy đủ
+```
+
+#### Bước liên quan Frontend (TypeScript/React)
+```
+[ ] Không có TypeScript error
+[ ] Component render đúng với dữ liệu mẫu
+[ ] API call dùng đúng API_BASE = "/api/backend"
+[ ] Disclaimer pháp lý vẫn còn ở footer input
+[ ] SUGGESTED_QUESTIONS đúng domain HĐLĐ
+```
+
+#### Bước liên quan Dữ liệu / RAG
+```
+[ ] File được nạp thành công (status: "success" từ API)
+[ ] Chunk count > 0 sau khi nạp
+[ ] Thử ít nhất 3 câu hỏi đại diện → câu trả lời có trích dẫn nguồn
+[ ] Source trả về đúng văn bản vừa nạp
+[ ] Không có câu trả lời bịa (hallucination)
+```
+
+#### Bước liên quan Prompt / System Prompt
+```
+[ ] Vẫn giữ quy tắc "chỉ trả lời từ tài liệu"
+[ ] Vẫn giữ yêu cầu trích dẫn [1], [2]...
+[ ] Thử câu hỏi ngoài phạm vi → hệ thống từ chối đúng cách
+[ ] Câu trả lời vẫn bằng tiếng Việt
+```
+
+> Nếu bất kỳ check nào FAIL → ghi vào "Vấn đề gặp phải" trong file chi tiết,
+> đánh dấu bước là ⚠️ CÓ VẤN ĐỀ, và xử lý trước khi chuyển bước tiếp.
+
+---
+
+### Bước B — Tạo file chi tiết bước
+
+Tạo file `docs/agent-history/YYYY-MM/step-NN.md` với template:
+
+```markdown
+# Bước N — [Tên bước]
+
+**Ngày:** YYYY-MM-DD
+**Trạng thái:** ✅ HOÀN THÀNH | ⚠️ CÓ VẤN ĐỀ
+**Phase:** N
+
+## Mục tiêu bước này
+[Mô tả ngắn]
+
+## Files thay đổi
+| File | Thay đổi |
+|------|---------|
+| `path/to/file` | mô tả |
+
+## Quyết định
+- [Quyết định và lý do]
+
+## Test Checklist
+| Kiểm tra | Kết quả |
+|---------|---------|
+| [check 1] | ✅ / ❌ |
+| [check 2] | ✅ / ❌ |
+
+## Vấn đề gặp phải
+- [Ghi nếu có, để tránh lặp lại]
+
+## Bước tiếp theo gợi ý
+- [Gợi ý cụ thể]
+```
+
+---
+
+### Bước C — Cập nhật AGENTS.md
+
+1. **Bảng Lộ trình** → đổi `⏳` thành `✅` cho bước vừa xong, `⏳` cho bước tiếp
+2. **Checklist chức năng** → đánh dấu `[x]` các mục vừa hoàn thành
+3. **Bước hiện tại** → cập nhật tên bước mới
+4. **Recent History** → thêm dòng mới (xóa dòng cũ nhất nếu > 5 dòng)
+5. **Decision Log** → thêm nếu có quyết định kỹ thuật mới
+
+### Bước D — Cập nhật INDEX.md
+
+Thêm dòng mới vào bảng `docs/agent-history/INDEX.md`:
+```
+| N | YYYY-MM-DD | ✅ | [Tên bước] | ✅/⚠️ | [step-NN.md](YYYY-MM/step-NN.md) |
+```
+
+---
+
+## 3. Quy tắc KHÔNG được vi phạm
+
+- ❌ Không đánh dấu HOÀN THÀNH khi còn check FAIL trong Test Checklist
+- ❌ Không xóa dòng trong Decision Log hoặc INDEX.md
+- ❌ Không sửa system prompt mà không ghi lý do
+- ❌ Không nạp văn bản mới mà không cập nhật kho dữ liệu trong AGENTS.md
+- ✅ AGENTS.md luôn là nguồn sự thật ngắn gọn — chi tiết để trong `docs/agent-history/`

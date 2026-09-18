@@ -1,0 +1,36 @@
+---
+description: Nhận dạng dự án và mục tiêu — áp dụng mọi phiên làm việc
+alwaysApply: true
+---
+
+# Dự án: Chatbot Hỏi đáp Pháp luật Lao động Việt Nam
+
+## Định vị sản phẩm
+
+Đây là chatbot RAG chuyên biệt cho **hợp đồng lao động Việt Nam**, phục vụ:
+- Người lao động tra cứu quyền lợi / nghĩa vụ
+- Doanh nghiệp / HR kiểm tra tính hợp lệ của HĐLĐ
+- Đối chiếu quy định nhiều văn bản cho một tình huống cụ thể
+
+## Stack công nghệ (không thay đổi nếu không có lý do rõ ràng)
+
+| Layer | Công nghệ |
+|-------|-----------|
+| LLM | Ollama `qwen2.5:7b` (local) |
+| Embedding | `keepitreal/vietnamese-sbert` (HuggingFace local) |
+| Vector DB | Qdrant (file-based local) |
+| Keyword search | BM25 (rank-bm25) |
+| Fusion | Reciprocal Rank Fusion (RRF) |
+| Backend | FastAPI + LangChain |
+| Frontend | Next.js 14 + Tailwind |
+
+## Nguyên tắc không thể vi phạm
+
+1. Câu trả lời PHẢI dựa trên tài liệu được nạp — không bịa đặt
+2. Mọi câu trả lời PHẢI trích dẫn điều/khoản/văn bản nguồn
+3. Hệ thống là 100% local — không gửi dữ liệu ra ngoài
+4. Trả lời bằng tiếng Việt, rõ ràng, đúng thuật ngữ pháp lý
+
+## Trạng thái dự án
+
+Xem `AGENTS.md` ở thư mục gốc để biết bước hiện tại và lịch sử thay đổi.

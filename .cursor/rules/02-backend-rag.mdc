@@ -1,0 +1,79 @@
+---
+description: Quy tắc lập trình backend RAG — Python/FastAPI/LangChain
+globs: backend/**/*.py
+alwaysApply: false
+---
+
+# Backend RAG — Quy tắc lập trình
+
+## Cấu trúc services
+
+```
+backend/app/services/
+├── rag.py          ← System prompt + chain — THAY ĐỔI CẨN THẬN
+├── hybrid_search.py← RRF logic — không sửa nếu không có lý do benchmark
+├── ingestion.py    ← Load/chunk/embed pipeline
+├── vectorstore.py  ← Qdrant operations
+├── bm25_store.py   ← BM25 index
+├── embeddings.py   ← Embedding functions
+└── llm.py          ← LLM provider factory
+```
+
+## System Prompt — Quy tắc sửa đổi
+
+File: `backend/app/services/rag.py` → `_SYSTEM_PROMPT`
+
+Khi sửa prompt:
+- Giữ quy tắc "chỉ trả lời từ tài liệu" — không bao giờ xóa rule này
+- Thêm hướng dẫn cấu trúc trả lời cho HĐLĐ:
+  ```
+  Cấu trúc trả lời:
+  1. Quy định áp dụng (điều/khoản cụ thể)
+  2. Căn cứ pháp lý (tên văn bản, số hiệu)
+  3. Lưu ý thực tiễn (nếu có trong tài liệu)
+  ```
+- Thêm nhận diện đối tượng: người lao động vs doanh nghiệp
+
+## Metadata văn bản pháp lý
+
+File: `backend/app/utils/text.py` → `extract_metadata_from_filename`
+
+Quy ước đặt tên file để metadata được trích xuất đúng:
+```
+bo-luat-lao-dong-45-2019-QH14.pdf     → doc_type=Bộ luật, year=2019, number=45/2019
+nghi-dinh-145-2020-ND-CP.pdf          → doc_type=Nghị định, year=2020, number=145/2020
+thong-tu-10-2020-TT-BLDTBXH.pdf       → doc_type=Thông tư, year=2020, number=10/2020
+```
+
+## Chunking — Tham số khuyến nghị
+
+File: `backend/app/core/config.py`
+
+```python
+CHUNK_SIZE = 512       # Đủ để chứa 1 Điều trung bình
+CHUNK_OVERLAP = 50     # Bảo toàn ngữ cảnh Khoản liền kề
+TOP_K = 5              # Đủ để bao phủ nhiều điều liên quan
+RRF_K = 60             # Giá trị chuẩn RRF
+```
+
+VI_SEPARATORS hiện tại đã tốt, chỉ thêm nếu có pattern mới:
+```python
+"\n\nĐiều ",   # Quan trọng nhất cho HĐLĐ
+"\n\nKhoản ",
+```
+
+## Filter metadata trong search
+
+`hybrid_search(query, filter_metadata={"doc_type": "Bộ luật"})` — dùng để lọc văn bản.  
+`ChatRequest` hiện chưa expose filter — khi thêm, dùng field tùy chọn:
+```python
+filter_doc_type: Optional[str] = None
+filter_year: Optional[str] = None
+```
+
+## Quy tắc chất lượng code
+
+- Type hints bắt buộc cho mọi function
+- Dùng `logger = get_logger(__name__)` — không dùng `print()`
+- Exception phải log cụ thể: `logger.exception(...)` với context
+- Pydantic model cho mọi request/response schema

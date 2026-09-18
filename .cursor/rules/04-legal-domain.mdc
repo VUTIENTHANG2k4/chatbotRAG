@@ -1,0 +1,65 @@
+---
+description: Domain knowledge pháp luật lao động — áp dụng mọi phiên
+alwaysApply: true
+---
+
+# Domain: Pháp luật Lao động Việt Nam — Hợp đồng Lao động
+
+## Văn bản pháp luật cốt lõi cần nạp
+
+| Ưu tiên | Văn bản | Số hiệu | Năm | Nội dung chính |
+|---------|---------|---------|-----|----------------|
+| 🔴 Bắt buộc | Bộ luật Lao động | 45/2019/QH14 | 2019 | Toàn bộ khung HĐLĐ |
+| 🔴 Bắt buộc | Nghị định hướng dẫn BLLĐ | 145/2020/NĐ-CP | 2020 | Chi tiết HĐLĐ, thử việc |
+| 🟡 Quan trọng | Thông tư mẫu HĐLĐ | 10/2020/TT-BLĐTBXH | 2020 | Mẫu, điều khoản chuẩn |
+| 🟡 Quan trọng | Nghị định xử phạt | 12/2022/NĐ-CP | 2022 | Phạt vi phạm lao động |
+| 🟢 Bổ sung | Nghị định BHXH | 115/2015/NĐ-CP | 2015 | BHXH bắt buộc |
+| 🟢 Bổ sung | Luật Bảo hiểm xã hội | 58/2014/QH13 | 2014 | Quyền lợi BHXH |
+
+## Phân loại hợp đồng lao động (theo BLLĐ 2019, Điều 20)
+
+```
+HĐLĐ không xác định thời hạn  ← phổ biến nhất, quyền lợi cao nhất
+HĐLĐ xác định thời hạn        ← tối đa 36 tháng, gia hạn 1 lần
+Hợp đồng thời vụ              ← dưới 12 tháng (bị bãi bỏ từ BLLĐ 2019)
+```
+
+## Điều khoản HĐLĐ bắt buộc (Điều 21, BLLĐ 2019)
+
+- Tên, địa chỉ người sử dụng lao động + thông tin người giao kết
+- Công việc và địa điểm làm việc
+- Thời hạn hợp đồng
+- Mức lương theo công việc/chức danh, hình thức trả lương, kỳ hạn trả lương
+- Chế độ nâng bậc, nâng lương
+- Thời giờ làm việc, thời giờ nghỉ ngơi
+- Trang bị bảo hộ lao động
+- BHXH, BHYT, BHTN
+- Đào tạo, bồi dưỡng, nâng cao trình độ
+
+## Thời gian thử việc (Điều 25, BLLĐ 2019)
+
+```
+Công việc yêu cầu trình độ ĐH trở lên    → tối đa 180 ngày
+Công việc yêu cầu trình độ CĐ, TC        → tối đa 60 ngày
+Công việc khác                            → tối đa 30 ngày
+Lao động giản đơn                         → tối đa 06 ngày
+Chỉ được thử việc 1 lần với 1 công việc
+```
+
+## Chấm dứt HĐLĐ — Điều then chốt
+
+- **Điều 34**: Các trường hợp chấm dứt HĐLĐ
+- **Điều 35**: Quyền đơn phương chấm dứt của NLĐ (báo trước 45/30/3 ngày)
+- **Điều 36**: Quyền đơn phương chấm dứt của NSDLĐ
+- **Điều 37**: Sa thải — phải có lý do hợp pháp
+- **Điều 41**: Nghĩa vụ NSDLĐ khi chấm dứt trái luật → phục hồi + bồi thường
+- **Điều 46**: Trợ cấp thôi việc (≥ 12 tháng làm việc)
+- **Điều 47**: Trợ cấp mất việc làm
+
+## Hướng dẫn Agent khi trả lời câu hỏi về HĐLĐ
+
+1. **Xác định đối tượng hỏi**: NLĐ (người lao động) hay NSDLĐ (doanh nghiệp)?
+2. **Xác định loại HĐLĐ**: xác định / không xác định / thử việc?
+3. **Trích dẫn cụ thể**: "Theo Điều X, BLLĐ 2019..." — không nói chung chung
+4. **Nếu có xung đột** giữa các văn bản: ưu tiên văn bản ban hành sau và có hiệu lực cao hơn
+5. **Lưu ý thực tiễn**: Nếu tài liệu có hướng dẫn thực tế, nêu thêm sau phần quy định

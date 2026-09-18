@@ -1,0 +1,154 @@
+[
+  {
+    "id": 1,
+    "query": "thời gian thử việc tối đa đối với lao động",
+    "expect_dieu": "Điều 25",
+    "num_hits": 5,
+    "kw_found": [
+      "thử việc",
+      "tháng"
+    ],
+    "kw_score": "67%",
+    "first_rrf": 0.0323,
+    "first_snippet": "Điều 24. Thử việc  1. Người sử dụng lao động và người lao động có thể thỏa thuận nội dung thử  việc ghi trong hợp đồng lao động hoặc thỏa thuận về thử việc bằng việc giao kết hợp đồng thử việc.  2. Nộ",
+    "elapsed_s": 16.77,
+    "pass": true
+  },
+  {
+    "id": 2,
+    "query": "hợp đồng lao động không xác định thời hạn",
+    "expect_dieu": "Điều 20",
+    "num_hits": 5,
+    "kw_found": [
+      "không xác định thời hạn",
+      "hợp đồng"
+    ],
+    "kw_score": "100%",
+    "first_rrf": 0.0328,
+    "first_snippet": "Điều 20. Loại hợp đồng lao động  1. Hợp đồng lao động phải được giao kết theo một trong các loại sau đây:  a) Hợp đồng lao động không xác định thời hạn là hợp đồng mà trong đó hai bên không xác định t",
+    "elapsed_s": 0.04,
+    "pass": true
+  },
+  {
+    "id": 3,
+    "query": "điều khoản bắt buộc phải có trong hợp đồng lao động",
+    "expect_dieu": "Điều 21",
+    "num_hits": 5,
+    "kw_found": [
+      "lương",
+      "công việc"
+    ],
+    "kw_score": "67%",
+    "first_rrf": 0.0311,
+    "first_snippet": "11  Trường hop phụ lục hợp dong lao động quy định chi tiết một số điều, khoản của hợp đồng lao động mà dẫn đến cách hiều khác với hợp đồng lao động thì thực hiện theo nội dung của hợp đông lao động.  ",
+    "elapsed_s": 0.04,
+    "pass": true
+  },
+  {
+    "id": 4,
+    "query": "người lao động đơn phương chấm dứt hợp đồng",
+    "expect_dieu": "Điều 35",
+    "num_hits": 5,
+    "kw_found": [
+      "đơn phương",
+      "chấm dứt",
+      "báo trước"
+    ],
+    "kw_score": "100%",
+    "first_rrf": 0.0328,
+    "first_snippet": "Điều 36. Quyền đơn phương cham dứt hợp đồng lao động của người sử dụng lao động  1. Người sử dụng lao động có quyền đơn phương chấm dứt hợp đồng lao động trong trường hợp sau đây:",
+    "elapsed_s": 0.03,
+    "pass": true
+  },
+  {
+    "id": 5,
+    "query": "người sử dụng lao động đơn phương chấm dứt hợp đồng",
+    "expect_dieu": "Điều 36",
+    "num_hits": 5,
+    "kw_found": [
+      "người sử dụng lao động",
+      "chấm dứt"
+    ],
+    "kw_score": "100%",
+    "first_rrf": 0.0328,
+    "first_snippet": "Điều 36. Quyền đơn phương cham dứt hợp đồng lao động của người sử dụng lao động  1. Người sử dụng lao động có quyền đơn phương chấm dứt hợp đồng lao động trong trường hợp sau đây:",
+    "elapsed_s": 0.03,
+    "pass": true
+  },
+  {
+    "id": 6,
+    "query": "sa thải trái pháp luật bồi thường người lao động",
+    "expect_dieu": "Điều 41",
+    "num_hits": 5,
+    "kw_found": [
+      "bồi thường"
+    ],
+    "kw_score": "50%",
+    "first_rrf": 0.0323,
+    "first_snippet": "a) VỀ xử lý kỷ luật lao động theo hình thức sa thải hoặc về trường hợp bị đơn phương châm dứt hợp đông lao động:  b) Về bồi thường thiệt hại, trợ cấp khi chấm dứt hợp đồng lao động:  c) Giữa người giú",
+    "elapsed_s": 0.04,
+    "pass": true
+  },
+  {
+    "id": 7,
+    "query": "trợ cấp thôi việc thâm niên làm việc",
+    "expect_dieu": "Điều 46",
+    "num_hits": 5,
+    "kw_found": [
+      "thôi việc",
+      "trợ cấp"
+    ],
+    "kw_score": "100%",
+    "first_rrf": 0.0323,
+    "first_snippet": "2. Thời gian làm việc dé tinh trợ cấp thôi việc là tổng thời gian người lao động đã làm việc thực tê cho người sử dụng lao động trừ đi thời gian người lao động đã tham gia bảo hiểm thất nghiệp theo qu",
+    "elapsed_s": 0.04,
+    "pass": true
+  },
+  {
+    "id": 8,
+    "query": "thời giờ làm việc bình thường mỗi ngày mỗi tuần",
+    "expect_dieu": "Điều 105",
+    "num_hits": 5,
+    "kw_found": [
+      "giờ",
+      "ngày",
+      "tuần"
+    ],
+    "kw_score": "100%",
+    "first_rrf": 0.0328,
+    "first_snippet": "Điều 105. Thời giờ làm việc bình thường  1. Thời giờ làm việc bình thường không quá 08 giờ trong 01 ngày và không quá 48 giờ trong 01 tuân.  2. Người sử dụng lao động có quyền quy định thời giờ làm vi",
+    "elapsed_s": 0.03,
+    "pass": true
+  },
+  {
+    "id": 9,
+    "query": "nghỉ hằng năm ngày phép người lao động",
+    "expect_dieu": "Điều 113",
+    "num_hits": 5,
+    "kw_found": [
+      "nghỉ",
+      "năm",
+      "ngày"
+    ],
+    "kw_score": "100%",
+    "first_rrf": 0.0325,
+    "first_snippet": "3. Trường hợp do thôi việc, bị mất việc làm mà chưa nghỉ hằng năm hoặc chưa nghỉ hét sô ngày nghỉ hăng năm thì được người sử dụng lao động thanh toán tiên lương cho những ngày chưa nghỉ.  4. Người sử ",
+    "elapsed_s": 0.03,
+    "pass": true
+  },
+  {
+    "id": 10,
+    "query": "tiền lương tối thiểu vùng",
+    "expect_dieu": "Điều 91",
+    "num_hits": 5,
+    "kw_found": [
+      "lương tối thiểu",
+      "vùng"
+    ],
+    "kw_score": "100%",
+    "first_rrf": 0.0328,
+    "first_snippet": "Điều 91. Mức lương tối thiểu  ]. Mức lương tối thiéu là mức lương thấp nhất được trả cho người lao động làm công việc giản đơn nhât trong điêu kiện lao động bình thường nhăm bảo đảm mức sông tôi thiêu",
+    "elapsed_s": 0.03,
+    "pass": true
+  }
+]
