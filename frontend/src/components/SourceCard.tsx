@@ -38,9 +38,6 @@ export default function SourceCard({
                 Trang {source.page}
               </span>
             )}
-            <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded border border-emerald-200">
-              RRF {source.rrf_score}
-            </span>
           </div>
 
           <p className="mt-2 text-slate-700 leading-relaxed">
