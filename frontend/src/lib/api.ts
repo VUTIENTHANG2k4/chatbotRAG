@@ -2,7 +2,6 @@ import type {
   ChatMessage,
   DocumentListResponse,
   HealthResponse,
-  IngestResponse,
   Source,
 } from "./types";
 
@@ -35,34 +34,6 @@ export const health = () => request<HealthResponse>("/health");
 
 export const listDocuments = () =>
   request<DocumentListResponse>("/documents");
-
-export const deleteDocument = (source: string) =>
-  request<{ source: string; deleted: boolean }>(
-    `/documents/${encodeURIComponent(source)}`,
-    { method: "DELETE" },
-  );
-
-export async function uploadDocuments(
-  files: File[],
-  overwrite: boolean = false,
-): Promise<IngestResponse> {
-  const form = new FormData();
-  for (const f of files) form.append("files", f, f.name);
-
-  const res = await fetch(
-    `${API_BASE}/documents/upload?overwrite=${overwrite}`,
-    {
-      method: "POST",
-      body: form,
-    },
-  );
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`Upload failed (${res.status}): ${text}`);
-  }
-  return res.json();
-}
 
 // ── Chat (SSE streaming) ──────────────────────────────────────────────
 

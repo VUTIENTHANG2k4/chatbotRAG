@@ -34,18 +34,6 @@ export interface DocumentListResponse {
   documents: DocumentInfo[];
 }
 
-export interface IngestResult {
-  status: "success" | "skipped" | "error";
-  source: string;
-  pages?: number | null;
-  chunks?: number | null;
-  reason?: string | null;
-}
-
-export interface IngestResponse {
-  results: IngestResult[];
-}
-
 export interface HealthResponse {
   status: string;
   app_name: string;
