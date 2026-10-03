@@ -8,12 +8,10 @@ import {
   useRef,
   useState,
 } from "react";
-import { _historyToApi, streamChat } from "@/lib/api";
-import type { ChatMessage } from "@/lib/types";
+import { _historyToApi, health, streamChat } from "@/lib/api";
+import type { ChatMessage, Session } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import MessageBubble from "./MessageBubble";
-
-const STORAGE_KEY = "legal_rag_chat_history";
 
 const SUGGESTED_QUESTIONS = [
   "Tôi ký hợp đồng xác định thời hạn 24 tháng, khi hết hạn có được ký tiếp không?",
@@ -22,27 +20,59 @@ const SUGGESTED_QUESTIONS = [
   "Doanh nghiệp chậm trả lương 10 ngày có vi phạm không và bị xử lý thế nào?",
 ];
 
-export default function ChatPanel() {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+interface Props {
+  session: Session;
+  onUpdate: (session: Session) => void;
+}
+
+export default function ChatPanel({ session, onUpdate }: Props) {
+  const [messages, setMessages] = useState<ChatMessage[]>(session.messages);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
+  const [llmProvider, setLlmProvider] = useState<string | null>(null);
+  const [embedProvider, setEmbedProvider] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  // Theo dõi session id để reset khi chuyển phiên
+  const sessionIdRef = useRef(session.id);
 
-  // Load persisted history once
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) setMessages(JSON.parse(saved));
-    } catch {}
+    health()
+      .then((h) => {
+        setLlmProvider(h.llm_provider);
+        setEmbedProvider(h.embed_provider);
+      })
+      .catch(() => setLlmProvider(null));
   }, []);
 
-  // Persist history
+  // Khi chuyển sang phiên khác → load messages mới, dừng stream cũ
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
-    } catch {}
+    if (session.id === sessionIdRef.current) return;
+    sessionIdRef.current = session.id;
+
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setStreaming(false);
+    setMessages(session.messages);
+    setInput("");
+  }, [session.id, session.messages]);
+
+  // Đồng bộ messages về parent và lưu
+  useEffect(() => {
+    const updated: Session = {
+      ...session,
+      messages,
+      // Tự đặt title từ câu hỏi đầu tiên
+      title:
+        session.title ||
+        (messages[0]?.role === "user"
+          ? messages[0].content.slice(0, 60)
+          : ""),
+    };
+    onUpdate(updated);
+    // Không thêm session vào deps để tránh vòng lặp
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages]);
 
   // Auto-scroll on new content
@@ -159,7 +189,7 @@ export default function ChatPanel() {
 
   const clearChat = () => {
     if (!messages.length) return;
-    if (!confirm("Xóa toàn bộ lịch sử hội thoại?")) return;
+    if (!confirm("Xóa toàn bộ tin nhắn trong phiên này?")) return;
     setMessages([]);
   };
 
@@ -238,6 +268,14 @@ export default function ChatPanel() {
           <p className="text-[11px] text-slate-400 mt-2 text-center">
             Hệ thống chỉ trả lời dựa trên các tài liệu đã được nạp. Câu trả lời
             không thay thế tư vấn pháp lý chuyên nghiệp.
+            {((llmProvider && llmProvider !== "ollama") ||
+              embedProvider === "hf-inference") && (
+              <>
+                {" "}
+                Câu hỏi được xử lý qua dịch vụ AI bên ngoài, không nhập thông
+                tin cá nhân nhạy cảm.
+              </>
+            )}
           </p>
         </div>
       </div>

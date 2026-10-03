@@ -1,5 +1,12 @@
 export type ChatRole = "user" | "assistant";
 
+export interface Session {
+  id: string;           // crypto.randomUUID()
+  title: string;        // câu hỏi đầu tiên, tối đa 60 ký tự; "" khi phiên mới chưa có câu hỏi
+  createdAt: number;    // Date.now()
+  messages: ChatMessage[];
+}
+
 export interface ChatMessage {
   role: ChatRole;
   content: string;

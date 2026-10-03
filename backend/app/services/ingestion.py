@@ -4,13 +4,13 @@ from pathlib import Path
 from typing import List, Optional
 
 from langchain_core.documents import Document
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-from app.core.config import settings, VI_SEPARATORS
+from app.core.config import settings
 from app.core.logging import get_logger
 from app.services.bm25_store import add_chunks_to_index, remove_document_from_index
 from app.services.embeddings import embed_texts
 from app.services.vectorstore import upsert_chunks, document_exists, delete_document_by_source
+from app.utils.legal_chunk import chunk_legal_pages
 from app.utils.text import clean_text, extract_metadata_from_filename
 
 logger = get_logger(__name__)
@@ -140,21 +140,27 @@ def load_document(path: Path) -> List[Document]:
 # ── Chunking ───────────────────────────────────────────────────────────────
 
 def chunk_documents(docs: List[Document], metadata: dict) -> List[Document]:
-    splitter = RecursiveCharacterTextSplitter(
-        separators=VI_SEPARATORS,
+    """Split by Điều. Sub-pieces of a long article repeat that article heading."""
+    pages = [
+        (doc.page_content, int(doc.metadata.get("page", 1)))
+        for doc in docs
+        if doc.page_content and doc.page_content.strip()
+    ]
+    legal_chunks = chunk_legal_pages(
+        pages,
         chunk_size=settings.chunk_size,
         chunk_overlap=settings.chunk_overlap,
-        length_function=len,
-        is_separator_regex=False,
     )
-
-    chunks = []
-    for doc in docs:
-        for i, split in enumerate(splitter.split_text(doc.page_content)):
-            chunks.append(Document(
-                page_content=split,
-                metadata={**metadata, "page": doc.metadata.get("page", 1), "chunk_index": i},
-            ))
+    chunks: List[Document] = []
+    for i, piece in enumerate(legal_chunks):
+        chunk_meta = {
+            **metadata,
+            "page": piece.page,
+            "chunk_index": i,
+            "dieu": piece.dieu,
+            "dieu_heading": piece.dieu_heading,
+        }
+        chunks.append(Document(page_content=piece.text, metadata=chunk_meta))
     return chunks
 
 

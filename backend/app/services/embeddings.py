@@ -14,13 +14,15 @@ logger = get_logger(__name__)
 def get_embedding_model(provider: str | None = None) -> Embeddings:
     """Return a LangChain Embeddings instance.
 
-    provider: "huggingface" (default) | "openai"
+    provider: "huggingface" (local) | "hf-inference" (same model, remote) | "openai"
     """
     provider = (provider or settings.embed_provider).lower()
 
     if provider in ("huggingface", "hf"):
         return _get_hf_embeddings()
-    elif provider == "openai":
+    if provider in ("hf-inference", "huggingface-api"):
+        return _get_hf_inference_embeddings()
+    if provider == "openai":
         return _get_openai_embeddings()
     raise ValueError(f"Unknown embedding provider '{provider}'")
 
@@ -34,6 +36,63 @@ def _get_hf_embeddings() -> Embeddings:
         model_name=settings.hf_embed_model,
         model_kwargs={"device": settings.hf_device},
         encode_kwargs={"normalize_embeddings": True},
+    )
+
+
+class HuggingFaceInferenceEmbeddings(Embeddings):
+    """Call keepitreal/vietnamese-sbert on Hugging Face Inference.
+
+    Vectors stay 768-d and L2-normalized, matching the local index in Qdrant.
+    """
+
+    def __init__(self, model: str, token: str) -> None:
+        self._model = model
+        self._token = token
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        if not texts:
+            return []
+        if not self._token:
+            raise ValueError(
+                "HF_TOKEN chưa được đặt. Tạo token đọc tại huggingface.co/settings/tokens."
+            )
+        from huggingface_hub import InferenceClient
+
+        raw = InferenceClient(api_key=self._token).feature_extraction(
+            texts,
+            model=self._model,
+            normalize=True,
+        )
+        return _coerce_sentence_vectors(raw, len(texts))
+
+    def embed_query(self, text: str) -> List[float]:
+        return self.embed_documents([text])[0]
+
+
+def _coerce_sentence_vectors(raw: object, count: int) -> List[List[float]]:
+    """Accept a sentence matrix or token tensor and return L2-normalized rows."""
+    import numpy as np
+
+    arr = np.asarray(raw, dtype=np.float32)
+    if arr.ndim == 1:
+        arr = arr.reshape(1, -1)
+    elif arr.ndim == 3:
+        arr = arr.mean(axis=1)
+    elif arr.ndim == 2 and count == 1 and arr.shape[0] != 1:
+        arr = arr.mean(axis=0, keepdims=True)
+    if arr.ndim != 2 or arr.shape[0] != count:
+        raise ValueError(f"Unexpected embedding shape {getattr(arr, 'shape', None)} for {count} texts")
+    norms = np.linalg.norm(arr, axis=1, keepdims=True)
+    norms = np.maximum(norms, 1e-12)
+    return (arr / norms).astype(np.float32).tolist()
+
+
+@lru_cache(maxsize=1)
+def _get_hf_inference_embeddings() -> Embeddings:
+    logger.info("Using Hugging Face Inference embeddings: %s", settings.hf_embed_model)
+    return HuggingFaceInferenceEmbeddings(
+        model=settings.hf_embed_model,
+        token=settings.hf_token,
     )
 
 

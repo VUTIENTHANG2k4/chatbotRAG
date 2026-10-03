@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List
 
-from fastapi import APIRouter, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 
 from app.core.config import settings
 from app.core.logging import get_logger
@@ -27,6 +27,14 @@ logger = get_logger(__name__)
 _ALLOWED_EXTS = SUPPORTED_EXTS  # pdf, docx, txt + png, jpg, jpeg, tiff, bmp, webp
 
 
+def require_admin_api() -> None:
+    if not settings.enable_admin_api:
+        raise HTTPException(
+            status_code=403,
+            detail="Chức năng quản lý tài liệu đã bị tắt trên môi trường này.",
+        )
+
+
 @router.get("", response_model=DocumentListResponse)
 async def list_documents() -> DocumentListResponse:
     docs = list_indexed_documents()
@@ -38,7 +46,7 @@ async def list_documents() -> DocumentListResponse:
     )
 
 
-@router.post("/upload", response_model=IngestResponse)
+@router.post("/upload", response_model=IngestResponse, dependencies=[Depends(require_admin_api)])
 async def upload_documents(
     files: List[UploadFile] = File(...),
     overwrite: bool = Query(default=False),
@@ -80,7 +88,7 @@ async def upload_documents(
     return IngestResponse(results=results)
 
 
-@router.post("/ingest-disk", response_model=IngestResponse)
+@router.post("/ingest-disk", response_model=IngestResponse, dependencies=[Depends(require_admin_api)])
 async def ingest_disk(
     overwrite: bool = Query(default=False),
 ) -> IngestResponse:
@@ -94,7 +102,7 @@ async def ingest_disk(
     return IngestResponse(results=[IngestResult(**r) for r in results])
 
 
-@router.delete("/{source}", response_model=DeleteResponse)
+@router.delete("/{source}", response_model=DeleteResponse, dependencies=[Depends(require_admin_api)])
 async def delete_document(source: str) -> DeleteResponse:
     ok_vector = delete_document_by_source(source)
     remove_document_from_index(source)

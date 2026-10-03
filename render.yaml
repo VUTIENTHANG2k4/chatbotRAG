@@ -1,0 +1,39 @@
+# Render Free web service. Secrets are filled in the dashboard (sync: false),
+# never committed. Build uses requirements-cloud.txt so torch is not installed.
+services:
+  - type: web
+    name: legal-rag-backend
+    runtime: python
+    plan: free
+    region: singapore
+    rootDir: backend
+    buildCommand: pip install --no-cache-dir -r requirements-cloud.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.11"
+      - key: LLM_PROVIDER
+        value: gemini
+      - key: GEMINI_MODEL
+        value: gemini-3.8-flash
+      - key: EMBED_PROVIDER
+        value: hf-inference
+      - key: HF_EMBED_MODEL
+        value: keepitreal/vietnamese-sbert
+      - key: QDRANT_COLLECTION
+        value: legal_documents
+      - key: AUTO_INGEST
+        value: "false"
+      - key: ENABLE_ADMIN_API
+        value: "false"
+      - key: CORS_ORIGIN_REGEX
+        value: https://.*\.vercel\.app
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: HF_TOKEN
+        sync: false
+      - key: QDRANT_URL
+        sync: false
+      - key: QDRANT_API_KEY
+        sync: false

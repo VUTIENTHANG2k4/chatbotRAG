@@ -25,14 +25,9 @@ File: `backend/app/services/rag.py` → `_SYSTEM_PROMPT`
 
 Khi sửa prompt:
 - Giữ quy tắc "chỉ trả lời từ tài liệu" — không bao giờ xóa rule này
-- Thêm hướng dẫn cấu trúc trả lời cho HĐLĐ:
-  ```
-  Cấu trúc trả lời:
-  1. Quy định áp dụng (điều/khoản cụ thể)
-  2. Căn cứ pháp lý (tên văn bản, số hiệu)
-  3. Lưu ý thực tiễn (nếu có trong tài liệu)
-  ```
-- Thêm nhận diện đối tượng: người lao động vs doanh nghiệp
+- Giữ cấu trúc trả lời 3 phần: Quy định áp dụng / Căn cứ pháp lý / Lưu ý thực tiễn
+- Giữ quy tắc nêu đúng số liệu (ngày, giờ, tháng, %, mức tiền) khi tài liệu có; không bịa số khi tài liệu không ghi
+- Không thêm câu "hỏi lại đối tượng NLĐ/NSDLĐ" — `qwen2.5:3b` hiểu sai và hỏi lại thay vì trả lời (xem bước 3)
 
 ## Metadata văn bản pháp lý
 
@@ -45,31 +40,33 @@ nghi-dinh-145-2020-ND-CP.pdf          → doc_type=Nghị định, year=2020, nu
 thong-tu-10-2020-TT-BLDTBXH.pdf       → doc_type=Thông tư, year=2020, number=10/2020
 ```
 
-## Chunking — Tham số khuyến nghị
+## Chunking — cắt theo Điều
 
-File: `backend/app/core/config.py`
+File: `backend/app/utils/legal_chunk.py`, gọi từ `chunk_documents()` trong `ingestion.py`.
 
-```python
-CHUNK_SIZE = 512       # Đủ để chứa 1 Điều trung bình
-CHUNK_OVERLAP = 50     # Bảo toàn ngữ cảnh Khoản liền kề
-TOP_K = 5              # Đủ để bao phủ nhiều điều liên quan
-RRF_K = 60             # Giá trị chuẩn RRF
-```
+- Một Điều = một hoặc nhiều chunk. Không gộp hai Điều vào cùng một chunk.
+- Heading nhận cả OCR dính liền (`lao động.Điều 3`, `4Điều 5`) và biến thể `Dieu` / `Điêu`. Dòng trích dẫn (`Điều 18,`, `Điều này`) không tách thành điều mới.
+- Điều dài hơn `chunk_size` thì cắt theo khoản (`1.`, `2.`). Mọi đoạn con bắt đầu lại bằng heading `Điều N. ...`.
+- Metadata chunk: `dieu` (số điều) và `dieu_heading`.
+- Preamble trước Điều 1 (tên văn bản, chương) vẫn được giữ.
+- `chunk_size = 512`, `chunk_overlap = 50` trong `config.py` chỉ giới hạn độ dài đoạn sau khi đã tách Điều. Overlap dùng khi một khoản vẫn dài hơn ngân sách.
 
-VI_SEPARATORS hiện tại đã tốt, chỉ thêm nếu có pattern mới:
-```python
-"\n\nĐiều ",   # Quan trọng nhất cho HĐLĐ
-"\n\nKhoản ",
-```
+Index không tự đổi khi sửa luật cắt. Phải ghi đè index (ingest `overwrite`, hoặc tái chunk từ text đã lưu nếu PDF là bản scan).
+
+## Qdrant remote và BM25
+
+`QDRANT_URL` rỗng: client file-based tại `storage/vector_db`, BM25 đọc/ghi pickle.
+
+`QDRANT_URL` có giá trị: `QdrantClient(url, api_key)`, tạo payload index `source`, `doc_type`, `year`, `dieu`. Không ghi pickle. `lifespan` gọi `rebuild_from_vectorstore()` trước khi nhận request. Ingest production làm trên máy dev rồi `scripts/migrate_to_qdrant_cloud.py` (giữ vector đã chấm, không OCR lại). Cloud Run chạy 1 worker vì BM25 nằm trong RAM của process.
+
+`LLM_PROVIDER=gemini` đọc `GEMINI_MODEL` (mặc định `gemini-3.8-flash`; `gemini-2.5-flash` trả 404 với API key mới) và `GOOGLE_API_KEY`. `thinking_level=low`.
+
+`EMBED_PROVIDER=huggingface` nạp `vietnamese-sbert` trên máy. `EMBED_PROVIDER=hf-inference` gọi cùng model qua Hugging Face Inference (`HF_TOKEN`), vector 768 chiều đã L2-normalize, không nạp PyTorch. Đổi sang model embedding khác thì phải embed lại collection. Image miễn phí dùng `Dockerfile.cloud` và `requirements-cloud.txt` (không cài torch). Remote client đặt `prefer_grpc=False`.
 
 ## Filter metadata trong search
 
-`hybrid_search(query, filter_metadata={"doc_type": "Bộ luật"})` — dùng để lọc văn bản.  
-`ChatRequest` hiện chưa expose filter — khi thêm, dùng field tùy chọn:
-```python
-filter_doc_type: Optional[str] = None
-filter_year: Optional[str] = None
-```
+`hybrid_search(query, filter_metadata={"doc_type": "Bộ luật"})` lọc cả vector và BM25.  
+`ChatRequest` đã có `filter_doc_type` và `filter_year` (optional).
 
 ## Quy tắc chất lượng code
 

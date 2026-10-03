@@ -7,8 +7,10 @@ from typing import Any, Dict, List, Optional, Tuple
 from langchain_core.documents import Document
 
 from app.core.config import settings
+from app.core.logging import get_logger
 from app.utils.text import simple_tokenize
 
+logger = get_logger(__name__)
 
 _INDEX_FILE = settings.bm25_index_path / "bm25_index.pkl"
 _CORPUS_FILE = settings.bm25_index_path / "bm25_corpus.pkl"
@@ -16,8 +18,15 @@ _CORPUS_FILE = settings.bm25_index_path / "bm25_corpus.pkl"
 # Lock to prevent concurrent rebuilds
 _lock = threading.Lock()
 
+# With remote Qdrant the instance is stateless: corpus and index live in memory
+# and are rebuilt from Qdrant payloads (see rebuild_from_vectorstore).
+_mem_corpus: List[Document] = []
+_mem_index: Any = None
+
 
 def _load_corpus() -> List[Document]:
+    if settings.use_remote_qdrant:
+        return _mem_corpus
     if _CORPUS_FILE.exists():
         with open(_CORPUS_FILE, "rb") as f:
             return pickle.load(f)
@@ -31,6 +40,8 @@ def _save_corpus(corpus: List[Document]) -> None:
 
 
 def _load_index():
+    if settings.use_remote_qdrant:
+        return _mem_index
     if _INDEX_FILE.exists():
         with open(_INDEX_FILE, "rb") as f:
             return pickle.load(f)
@@ -44,18 +55,33 @@ def _save_index(index) -> None:
 
 
 def build_index(corpus: List[Document]) -> None:
+    global _mem_corpus, _mem_index
     from rank_bm25 import BM25Okapi
 
-    if not corpus:
-        # remove old files if corpus is empty
+    index = BM25Okapi([simple_tokenize(doc.page_content) for doc in corpus]) if corpus else None
+
+    if settings.use_remote_qdrant:
+        _mem_corpus = list(corpus)
+        _mem_index = index
+        return
+
+    if index is None:
         _INDEX_FILE.unlink(missing_ok=True)
         _CORPUS_FILE.unlink(missing_ok=True)
         return
-
-    tokenized = [simple_tokenize(doc.page_content) for doc in corpus]
-    index = BM25Okapi(tokenized)
     _save_corpus(corpus)
     _save_index(index)
+
+
+def rebuild_from_vectorstore() -> int:
+    """Rebuild the BM25 index from every chunk stored in Qdrant. Returns corpus size."""
+    from app.services.vectorstore import scroll_all_documents
+
+    with _lock:
+        corpus = scroll_all_documents()
+        build_index(corpus)
+    logger.info("BM25 rebuilt from Qdrant: %d chunks", len(corpus))
+    return len(corpus)
 
 
 def add_chunks_to_index(new_chunks: List[Document]) -> None:

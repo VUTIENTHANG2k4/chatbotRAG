@@ -11,10 +11,11 @@ alwaysApply: false
 ```
 frontend/src/
 ├── app/
-│   ├── page.tsx         ← Layout chính: Header + DocumentSidebar + ChatPanel
+│   ├── page.tsx         ← Layout chính: Header + SessionSidebar + ChatPanel; state session nâng lên đây
 │   └── layout.tsx
 ├── components/
-│   ├── ChatPanel.tsx    ← Chat UI, SUGGESTED_QUESTIONS — cần cập nhật domain
+│   ├── ChatPanel.tsx    ← Nhận props session + onUpdate; không có localStorage
+│   ├── SessionSidebar.tsx ← Sidebar trái: danh sách phiên, tạo mới, xóa, collapse
 │   ├── MessageBubble.tsx
 │   ├── SourceCard.tsx   ← Hiển thị nguồn trích dẫn
 │   ├── DocumentSidebar.tsx← Upload + danh sách văn bản
@@ -22,10 +23,21 @@ frontend/src/
 │   └── Header.tsx
 └── lib/
     ├── api.ts           ← Tất cả API calls
-    └── types.ts         ← TypeScript types
+    ├── sessions.ts      ← localStorage helpers cho Session (loadSessions, saveSession, deleteSession, newSession)
+    └── types.ts         ← TypeScript types; có interface Session
 ```
 
-## SUGGESTED_QUESTIONS — phải đúng domain HĐLĐ
+## Session History — Quy tắc
+
+File: `frontend/src/lib/sessions.ts`
+
+- `SESSIONS_KEY = "legal_rag_sessions"` — mảng `Session[]`, mới nhất đầu
+- `ACTIVE_SESSION_KEY = "legal_rag_active_session"` — id phiên đang mở
+- `saveSession()` giữ tối đa **30 phiên**; khi vượt, phiên cũ nhất bị cắt
+- `Session.title` = câu hỏi đầu tiên, tối đa 60 ký tự; `""` khi phiên chưa có câu hỏi
+- State session nâng lên `page.tsx`, **ChatPanel không đọc/ghi localStorage trực tiếp**
+
+
 
 File: `frontend/src/components/ChatPanel.tsx`
 

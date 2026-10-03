@@ -1,0 +1,35 @@
+# Free-tier image: embeddings go to Hugging Face Inference, so PyTorch stays out.
+# Local compose still builds backend/Dockerfile (OCR + baked vietnamese-sbert).
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    LLM_PROVIDER=gemini \
+    GEMINI_MODEL=gemini-3.8-flash \
+    EMBED_PROVIDER=hf-inference \
+    HF_EMBED_MODEL=keepitreal/vietnamese-sbert \
+    AUTO_INGEST=false \
+    ENABLE_ADMIN_API=false \
+    CORS_ORIGIN_REGEX=https://.*\\.vercel\\.app
+
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY requirements-cloud.txt .
+RUN pip install --upgrade pip && pip install -r requirements-cloud.txt
+
+COPY ./app ./app
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh && mkdir -p /app/data
+
+ENV PORT=8000
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
+    CMD curl -fsS http://localhost:${PORT}/api/v1/health || exit 1
+
+CMD ["/entrypoint.sh"]

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import threading
 from contextlib import asynccontextmanager
+from typing import Any
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -44,8 +45,18 @@ async def lifespan(_: FastAPI):
     logger.info("LLM provider: %s | Embedding provider: %s",
                 settings.llm_provider, settings.embed_provider)
     settings.ensure_dirs()
-    # Auto-ingest any files already placed in data/ (runs in background, non-blocking)
-    threading.Thread(target=_startup_ingest, daemon=True, name="startup-ingest").start()
+    if settings.use_remote_qdrant:
+        from app.services.bm25_store import rebuild_from_vectorstore
+
+        try:
+            rebuild_from_vectorstore()
+        except Exception:
+            logger.exception("BM25 rebuild from Qdrant failed; keyword search disabled")
+    if settings.auto_ingest:
+        # Auto-ingest any files already placed in data/ (runs in background, non-blocking)
+        threading.Thread(target=_startup_ingest, daemon=True, name="startup-ingest").start()
+    else:
+        logger.info("Auto-ingest disabled (AUTO_INGEST=false)")
     yield
     logger.info("Shutting down %s", settings.app_name)
 
@@ -57,13 +68,16 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+_cors_kwargs: dict[str, Any] = {
+    "allow_origins": settings.cors_origins,
+    "allow_credentials": True,
+    "allow_methods": ["*"],
+    "allow_headers": ["*"],
+}
+if settings.cors_origin_regex.strip():
+    _cors_kwargs["allow_origin_regex"] = settings.cors_origin_regex.strip()
+
+app.add_middleware(CORSMiddleware, **_cors_kwargs)
 
 # ── Routers ────────────────────────────────────────────────────────────────
 app.include_router(health.router, prefix=settings.api_prefix)

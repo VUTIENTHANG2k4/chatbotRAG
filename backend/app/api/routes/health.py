@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 from fastapi import APIRouter
 
 from app.core.config import settings
@@ -25,12 +27,19 @@ async def health() -> HealthResponse:
 
 @router.get("/health/llm")
 async def health_llm() -> dict:
-    """Check connectivity to the configured LLM backend (Ollama)."""
-    if settings.llm_provider == "ollama":
+    """Report the configured LLM backend and whether it looks usable."""
+    provider = settings.llm_provider.lower()
+    if provider == "ollama":
         return {
             "provider": "ollama",
             "model": settings.ollama_model,
             "base_url": settings.ollama_base_url,
             "reachable": check_ollama_health(),
         }
-    return {"provider": settings.llm_provider, "reachable": True}
+    if provider == "gemini":
+        return {
+            "provider": "gemini",
+            "model": settings.gemini_model,
+            "api_key_set": bool(settings.google_api_key or os.getenv("GOOGLE_API_KEY")),
+        }
+    return {"provider": provider}

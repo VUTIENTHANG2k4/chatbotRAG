@@ -30,6 +30,7 @@ def get_llm(provider: str | None = None) -> BaseChatModel:
 def clear_llm_cache() -> None:
     """Clear cached LLM instances (useful after changing model in .env)."""
     _build_ollama.cache_clear()
+    _build_gemini.cache_clear()
 
 
 @lru_cache(maxsize=1)
@@ -59,17 +60,21 @@ def _build_openai() -> BaseChatModel:
     )
 
 
+@lru_cache(maxsize=1)
 def _build_gemini() -> BaseChatModel:
     from langchain_google_genai import ChatGoogleGenerativeAI
 
-    api_key = os.getenv("GOOGLE_API_KEY", "")
+    api_key = settings.google_api_key or os.getenv("GOOGLE_API_KEY", "")
     if not api_key:
         raise ValueError("GOOGLE_API_KEY not set")
+    logger.info("Initializing Gemini LLM: %s", settings.gemini_model)
     return ChatGoogleGenerativeAI(
-        model=os.getenv("GEMINI_MODEL", "gemini-1.5-flash"),
+        model=settings.gemini_model,
         google_api_key=api_key,
         temperature=0.0,
         streaming=True,
+        # RAG answers must follow retrieved text; keep thinking shallow for latency.
+        thinking_level="low",
     )
 
 

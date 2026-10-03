@@ -12,18 +12,29 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 
+_PAYLOAD_INDEX_FIELDS = ("source", "doc_type", "year", "dieu")
+_SCROLL_BATCH = 256
+
+
 @lru_cache(maxsize=1)
 def _get_client():
-    """Cached Qdrant client (local file-based mode)."""
+    """Cached Qdrant client: remote when QDRANT_URL is set, else local file-based."""
     from qdrant_client import QdrantClient
 
+    if settings.use_remote_qdrant:
+        logger.info("Connecting to remote Qdrant at %s", settings.qdrant_url)
+        return QdrantClient(
+            url=settings.qdrant_url,
+            api_key=settings.qdrant_api_key or None,
+            timeout=30,
+            prefer_grpc=False,
+        )
     return QdrantClient(path=str(settings.qdrant_path))
 
 
-def _ensure_collection(vector_size: int) -> None:
-    from qdrant_client.models import Distance, VectorParams
+def ensure_collection(client: Any, vector_size: int) -> None:
+    from qdrant_client.models import Distance, PayloadSchemaType, VectorParams
 
-    client = _get_client()
     existing = [c.name for c in client.get_collections().collections]
     if settings.qdrant_collection not in existing:
         logger.info("Creating Qdrant collection '%s' (dim=%d)",
@@ -32,6 +43,21 @@ def _ensure_collection(vector_size: int) -> None:
             collection_name=settings.qdrant_collection,
             vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE),
         )
+    # Local mode ignores payload indexes; remote Qdrant needs them for filters.
+    if settings.use_remote_qdrant:
+        for field in _PAYLOAD_INDEX_FIELDS:
+            try:
+                client.create_payload_index(
+                    collection_name=settings.qdrant_collection,
+                    field_name=field,
+                    field_schema=PayloadSchemaType.KEYWORD,
+                )
+            except Exception as e:
+                logger.debug("Payload index %s not created: %s", field, e)
+
+
+def _ensure_collection(vector_size: int) -> None:
+    ensure_collection(_get_client(), vector_size)
 
 
 def upsert_chunks(chunks: List[Document], embeddings: List[List[float]]) -> List[str]:
@@ -111,20 +137,48 @@ def delete_document_by_source(source: str) -> bool:
         return False
 
 
-def list_indexed_documents() -> List[Dict[str, Any]]:
-    try:
-        all_points, _ = _get_client().scroll(
+def _scroll_payloads() -> List[Dict[str, Any]]:
+    """All point payloads in the collection, paginated."""
+    client = _get_client()
+    payloads: List[Dict[str, Any]] = []
+    offset = None
+    while True:
+        points, offset = client.scroll(
             collection_name=settings.qdrant_collection,
-            limit=10_000,
+            limit=_SCROLL_BATCH,
+            offset=offset,
             with_payload=True,
             with_vectors=False,
         )
+        payloads.extend(dict(p.payload or {}) for p in points)
+        if offset is None:
+            break
+    return payloads
+
+
+def scroll_all_documents() -> List[Document]:
+    """Every stored chunk as a Document (text + metadata), for rebuilding BM25."""
+    try:
+        payloads = _scroll_payloads()
+    except Exception as e:
+        logger.warning("Scroll failed: %s", e)
+        return []
+    docs: List[Document] = []
+    for payload in payloads:
+        text = payload.pop("text", "")
+        docs.append(Document(page_content=text, metadata=payload))
+    docs.sort(key=lambda d: (str(d.metadata.get("source", "")), d.metadata.get("chunk_index") or 0))
+    return docs
+
+
+def list_indexed_documents() -> List[Dict[str, Any]]:
+    try:
+        all_points = _scroll_payloads()
     except Exception:
         return []
 
     doc_map: Dict[str, Dict[str, Any]] = {}
-    for point in all_points:
-        payload = point.payload or {}
+    for payload in all_points:
         source = payload.get("source", "unknown")
         if source not in doc_map:
             doc_map[source] = {

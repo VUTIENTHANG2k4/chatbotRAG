@@ -5,9 +5,11 @@ import type {
   Source,
 } from "./types";
 
-// All API calls go through Next.js rewrites at /api/backend/*
-// (configured in next.config.mjs → forwards to FastAPI /api/v1/*)
-const API_BASE = "/api/backend";
+// Local and Docker: browser calls same-origin /api/backend, and Next rewrites
+// that to FastAPI /api/v1. Vercel sets NEXT_PUBLIC_BACKEND_ORIGIN so the browser
+// calls Render directly (the free serverless proxy times out on cold start + RAG).
+const _publicOrigin = process.env.NEXT_PUBLIC_BACKEND_ORIGIN?.replace(/\/$/, "");
+const API_BASE = _publicOrigin ? `${_publicOrigin}/api/v1` : "/api/backend";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {

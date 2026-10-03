@@ -14,22 +14,23 @@ alwaysApply: true
 
 ## Stack công nghệ (không thay đổi nếu không có lý do rõ ràng)
 
-| Layer | Công nghệ |
-|-------|-----------|
-| LLM | Ollama `qwen2.5:7b` (local) |
-| Embedding | `keepitreal/vietnamese-sbert` (HuggingFace local) |
-| Vector DB | Qdrant (file-based local) |
-| Keyword search | BM25 (rank-bm25) |
-| Fusion | Reciprocal Rank Fusion (RRF) |
-| Backend | FastAPI + LangChain |
-| Frontend | Next.js 14 + Tailwind |
+Hai chế độ, cùng embedding `keepitreal/vietnamese-sbert` (768 chiều). Không đổi embedding sang Gemini.
+
+| Layer | Local (mặc định) | Cloud |
+|-------|------------------|-------|
+| LLM | Ollama `qwen2.5:3b` | Gemini `gemini-3.8-flash` |
+| Vector DB | Qdrant file-based | Qdrant Cloud (`QDRANT_URL`) |
+| Keyword | BM25 pickle trên đĩa | BM25 dựng trong RAM từ payload Qdrant lúc khởi động |
+| Backend | FastAPI + LangChain | Cloud Run, 1 worker, không OCR |
+| Frontend | Next.js 14 + Tailwind | Cloud Run, rewrite `BACKEND_URL` |
 
 ## Nguyên tắc không thể vi phạm
 
 1. Câu trả lời PHẢI dựa trên tài liệu được nạp — không bịa đặt
 2. Mọi câu trả lời PHẢI trích dẫn điều/khoản/văn bản nguồn
-3. Hệ thống là 100% local — không gửi dữ liệu ra ngoài
+3. Chế độ local không gửi dữ liệu ra ngoài. Chế độ cloud gửi câu hỏi và đoạn luật đã retrieve tới Gemini; UI phải nói rõ điều này
 4. Trả lời bằng tiếng Việt, rõ ràng, đúng thuật ngữ pháp lý
+5. Production cloud tắt auto-ingest và API quản trị tài liệu (`AUTO_INGEST=false`, `ENABLE_ADMIN_API=false`)
 
 ## Trạng thái dự án
 
