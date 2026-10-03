@@ -161,6 +161,13 @@ Image local (`backend/Dockerfile`) vẫn cài PyTorch để chạy `EMBED_PROVID
 
 Frontend trên Vercel đặt `NEXT_PUBLIC_BACKEND_ORIGIN` bằng URL Render (không có `/api/v1`). Trình duyệt gọi API trực tiếp. Backend cần `CORS_ORIGIN_REGEX=https://.*\.vercel\.app`. Local vẫn đi qua `/api/backend`.
 
+Đang chạy:
+
+- Giao diện: `https://legal-rag-three.vercel.app`
+- API: `https://legal-rag-backend-z8am.onrender.com` (Render Free, Singapore)
+
+Máy API ngủ sau khoảng 15 phút không có request; lần gọi đầu sau đó mất khoảng một phút.
+
 ## Triển khai Cloud Run
 
 Qdrant Cloud là nguồn sự thật. Cloud Run không giữ index trên đĩa: lúc khởi động backend kéo payload về và dựng BM25 trong RAM. Lịch sử phiên vẫn ở `localStorage` của trình duyệt. OCR và ingest chỉ làm trên máy dev; image production không cài Tesseract/Poppler.

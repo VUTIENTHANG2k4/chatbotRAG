@@ -32,6 +32,40 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const health = () => request<HealthResponse>("/health");
 
+export interface ChatResult {
+  answer: string;
+  sources: Source[];
+}
+
+/** One-shot answer. Used when the browser calls Render directly: tiny SSE
+ * chunks sit in the proxy buffer, so the UI shows sources and an empty box. */
+export async function askChat(opts: {
+  question: string;
+  chatHistory: { role: "user" | "assistant"; content: string }[];
+  topK?: number;
+  filterDocType?: string;
+  filterYear?: string;
+  signal?: AbortSignal;
+}): Promise<ChatResult> {
+  const body = JSON.stringify({
+    question: opts.question,
+    chat_history: opts.chatHistory,
+    top_k: opts.topK ?? 5,
+    filter_doc_type: opts.filterDocType || null,
+    filter_year: opts.filterYear || null,
+  });
+  const run = () =>
+    request<ChatResult>("/chat", { method: "POST", body, signal: opts.signal });
+  try {
+    return await run();
+  } catch (e) {
+    const message = (e as Error).message ?? "";
+    if (!/503|UNAVAILABLE|high demand/i.test(message)) throw e;
+    await new Promise((r) => setTimeout(r, 1500));
+    return await run();
+  }
+}
+
 // ── Documents ─────────────────────────────────────────────────────────
 
 export const listDocuments = () =>

@@ -31,4 +31,9 @@ Thumbs.db
 # Misc
 *.log
 
+# Agent notes, local Cursor rules, and project docs
+AGENTS.md
+.cursor/
+docs/
+
 

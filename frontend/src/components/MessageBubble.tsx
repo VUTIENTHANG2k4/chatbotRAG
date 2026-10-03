@@ -52,12 +52,21 @@ export default function MessageBubble({ msg }: { msg: ChatMessage }) {
             <div
               className={cn(
                 "prose-answer text-sm",
-                msg.isStreaming && "streaming-cursor",
+                msg.isStreaming && msg.content && "streaming-cursor",
               )}
             >
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {msg.content || (msg.isStreaming ? "" : "(Không có phản hồi)")}
-              </ReactMarkdown>
+              {msg.content ? (
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {msg.content}
+                </ReactMarkdown>
+              ) : msg.isStreaming ? (
+                <p className="text-slate-400 m-0">Đang trả lời…</p>
+              ) : (
+                <p className="m-0">(Không có phản hồi)</p>
+              )}
+              {msg.error && (
+                <p className="mt-2 text-red-700 whitespace-pre-wrap">{msg.error}</p>
+              )}
             </div>
           )}
         </div>

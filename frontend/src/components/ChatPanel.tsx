@@ -8,7 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { _historyToApi, health, streamChat } from "@/lib/api";
+import { _historyToApi, askChat, health, streamChat } from "@/lib/api";
 import type { ChatMessage, Session } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import MessageBubble from "./MessageBubble";
@@ -120,6 +120,47 @@ export default function ChatPanel({ session, onUpdate }: Props) {
       abortRef.current = ctrl;
 
       const history = _historyToApi(messages);
+      // Public site calls Render directly. Streaming tokens are buffered there,
+      // so the bubble stays empty. Ask for the full answer instead.
+      const directApi = Boolean(process.env.NEXT_PUBLIC_BACKEND_ORIGIN);
+
+      if (directApi) {
+        try {
+          const result = await askChat({
+            question,
+            chatHistory: history,
+            topK: 5,
+            signal: ctrl.signal,
+          });
+          setMessages((prev) => {
+            const copy = [...prev];
+            const last = copy[copy.length - 1];
+            if (last?.role === "assistant") {
+              copy[copy.length - 1] = {
+                ...last,
+                content: result.answer,
+                sources: result.sources,
+                isStreaming: false,
+              };
+            }
+            return copy;
+          });
+        } catch (e) {
+          if ((e as Error).name === "AbortError") return;
+          const err = (e as Error).message || "Không nhận được câu trả lời";
+          setMessages((prev) => {
+            const copy = [...prev];
+            const last = copy[copy.length - 1];
+            if (last?.role === "assistant") {
+              copy[copy.length - 1] = { ...last, isStreaming: false, error: err };
+            }
+            return copy;
+          });
+        } finally {
+          setStreaming(false);
+        }
+        return;
+      }
 
       await streamChat({
         question,
@@ -217,7 +258,7 @@ export default function ChatPanel({ session, onUpdate }: Props) {
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-6">
         {messages.length === 0 ? (
-          <EmptyState onPick={send} />
+          <EmptyState onPick={send} cloud={Boolean(process.env.NEXT_PUBLIC_BACKEND_ORIGIN)} />
         ) : (
           <div className="max-w-4xl mx-auto space-y-6">
             {messages.map((m, i) => (
@@ -283,7 +324,13 @@ export default function ChatPanel({ session, onUpdate }: Props) {
   );
 }
 
-function EmptyState({ onPick }: { onPick: (q: string) => void }) {
+function EmptyState({
+  onPick,
+  cloud,
+}: {
+  onPick: (q: string) => void;
+  cloud: boolean;
+}) {
   return (
     <div className="max-w-2xl mx-auto text-center pt-12">
       <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-brand-100 text-brand-600 mb-4">
@@ -293,8 +340,10 @@ function EmptyState({ onPick }: { onPick: (q: string) => void }) {
         Trợ lý Hợp đồng Lao động
       </h2>
       <p className="text-slate-600 mb-8">
-        Hỏi đáp quyền và nghĩa vụ NLĐ/NSDLĐ dựa trên tài liệu bạn đã nạp -
-        xử lý cục bộ, không gửi dữ liệu ra ngoài.
+        Hỏi đáp quyền và nghĩa vụ NLĐ/NSDLĐ dựa trên tài liệu đã nạp.
+        {cloud
+          ? " Câu hỏi được xử lý qua dịch vụ AI bên ngoài, không nhập thông tin cá nhân nhạy cảm."
+          : " Xử lý cục bộ, không gửi dữ liệu ra ngoài."}
       </p>
 
       <div className="flex items-center justify-center gap-1.5 mb-3 text-xs font-medium text-slate-500">

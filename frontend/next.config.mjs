@@ -1,7 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  output: "standalone",
+  // Docker uses the standalone server. Vercel builds its own Next output.
+  output: process.env.VERCEL ? undefined : "standalone",
   async rewrites() {
     // BACKEND_URL is a server-only env var (no NEXT_PUBLIC_ prefix so it works
     // correctly at runtime in standalone mode).
