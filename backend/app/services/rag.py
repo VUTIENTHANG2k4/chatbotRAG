@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, AsyncIterator, Dict, Iterator, List, Optional, Tuple
 
+from fastapi.concurrency import run_in_threadpool
 from langchain_core.documents import Document
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.output_parsers import StrOutputParser
@@ -88,7 +89,6 @@ def _to_messages(history: Optional[List[Dict[str, str]]]):
 
 def ask(
     question: str,
-    provider: str | None = None,
     top_k: int | None = None,
     chat_history: Optional[List[Dict[str, str]]] = None,
     filter_metadata: Optional[Dict[str, Any]] = None,
@@ -98,7 +98,7 @@ def ask(
     docs_with_scores = hybrid_search(question, top_k=top_k, filter_metadata=filter_metadata)
     context = _build_context(docs_with_scores)
 
-    chain = _PROMPT | get_llm(provider) | StrOutputParser()
+    chain = _PROMPT | get_llm() | StrOutputParser()
     answer = chain.invoke({
         "context": context,
         "question": question,
@@ -114,7 +114,6 @@ def ask(
 
 def ask_stream_sync(
     question: str,
-    provider: str | None = None,
     top_k: int | None = None,
     chat_history: Optional[List[Dict[str, str]]] = None,
     filter_metadata: Optional[Dict[str, Any]] = None,
@@ -125,7 +124,7 @@ def ask_stream_sync(
     context = _build_context(docs_with_scores)
     sources = _docs_to_sources(docs_with_scores)
 
-    chain = _PROMPT | get_llm(provider) | StrOutputParser()
+    chain = _PROMPT | get_llm() | StrOutputParser()
     stream = chain.stream({
         "context": context,
         "question": question,
@@ -136,18 +135,19 @@ def ask_stream_sync(
 
 async def ask_stream_async(
     question: str,
-    provider: str | None = None,
     top_k: int | None = None,
     chat_history: Optional[List[Dict[str, str]]] = None,
     filter_metadata: Optional[Dict[str, Any]] = None,
 ) -> Tuple[AsyncIterator[str], List[Dict[str, Any]]]:
     """Async streaming variant for FastAPI SSE endpoints."""
     top_k = top_k or settings.top_k
-    docs_with_scores = hybrid_search(question, top_k=top_k, filter_metadata=filter_metadata)
+    docs_with_scores = await run_in_threadpool(
+        hybrid_search, question, top_k=top_k, filter_metadata=filter_metadata
+    )
     context = _build_context(docs_with_scores)
     sources = _docs_to_sources(docs_with_scores)
 
-    chain = _PROMPT | get_llm(provider) | StrOutputParser()
+    chain = _PROMPT | get_llm() | StrOutputParser()
     stream = chain.astream({
         "context": context,
         "question": question,

@@ -3,15 +3,16 @@ from __future__ import annotations
 import json
 from typing import AsyncIterator, Dict
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
 from app.core.logging import get_logger
+from app.core.ratelimit import rate_limit
 from app.schemas.chat import ChatRequest, ChatResponse
 from app.services.rag import ask, ask_stream_async
 from app.services.vectorstore import get_collection_stats
 
-router = APIRouter(prefix="/chat", tags=["chat"])
+router = APIRouter(prefix="/chat", tags=["chat"], dependencies=[Depends(rate_limit)])
 logger = get_logger(__name__)
 
 
@@ -21,6 +22,16 @@ def _ensure_indexed():
             status_code=409,
             detail="Chưa có tài liệu nào được nạp. Vui lòng upload tài liệu trước.",
         )
+
+
+_BUSY_MARKERS = ("503", "unavailable", "high demand", "429", "quota", "rate limit")
+
+
+def _upstream_error(e: Exception) -> tuple[int, str]:
+    """Map a provider failure to a safe (status, message); details stay in the log."""
+    if any(m in str(e).lower() for m in _BUSY_MARKERS):
+        return 503, "Dịch vụ AI đang quá tải. Vui lòng thử lại sau ít phút."
+    return 500, "Không thể xử lý câu hỏi lúc này. Vui lòng thử lại sau."
 
 
 def _build_filter_metadata(req: ChatRequest) -> Dict[str, str]:
@@ -33,23 +44,21 @@ def _build_filter_metadata(req: ChatRequest) -> Dict[str, str]:
 
 
 @router.post("", response_model=ChatResponse)
-async def chat(req: ChatRequest) -> ChatResponse:
+def chat(req: ChatRequest) -> ChatResponse:
     """Synchronous Q&A — returns full answer + sources in one response."""
     _ensure_indexed()
 
     try:
         result = ask(
             question=req.question,
-            provider=req.provider,
             top_k=req.top_k,
             chat_history=[m.model_dump() for m in req.chat_history],
             filter_metadata=_build_filter_metadata(req),
         )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.exception("Chat failed")
-        raise HTTPException(status_code=500, detail=str(e))
+        status, message = _upstream_error(e)
+        raise HTTPException(status_code=status, detail=message)
 
     return ChatResponse(**result)
 
@@ -70,8 +79,7 @@ async def chat_stream(req: ChatRequest):
         try:
             stream, sources = await ask_stream_async(
                 question=req.question,
-                provider=req.provider,
-                top_k=req.top_k,
+                    top_k=req.top_k,
                 chat_history=[m.model_dump() for m in req.chat_history],
                 filter_metadata=_build_filter_metadata(req),
             )
@@ -85,7 +93,8 @@ async def chat_stream(req: ChatRequest):
             yield _sse("done", "{}")
         except Exception as e:
             logger.exception("Stream failed")
-            yield _sse("error", json.dumps({"message": str(e)}, ensure_ascii=False))
+            _, message = _upstream_error(e)
+            yield _sse("error", json.dumps({"message": message}, ensure_ascii=False))
 
     return StreamingResponse(
         event_generator(),

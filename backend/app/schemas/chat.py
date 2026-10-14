@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 class ChatMessage(BaseModel):
     role: Literal["user", "assistant"]
-    content: str
+    content: str = Field(..., max_length=8000)
 
 
 class Source(BaseModel):
@@ -22,16 +22,17 @@ class Source(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    question: str = Field(..., min_length=1)
-    chat_history: List[ChatMessage] = Field(default_factory=list)
+    question: str = Field(..., min_length=1, max_length=2000)
+    chat_history: List[ChatMessage] = Field(default_factory=list, max_length=20)
     top_k: int = Field(default=5, ge=1, le=20)
-    provider: Optional[str] = Field(default=None, description="ollama | openai | gemini")
     filter_doc_type: Optional[str] = Field(
         default=None,
+        max_length=100,
         description="Lọc theo loại văn bản, ví dụ: Bộ luật, Nghị định, Thông tư",
     )
     filter_year: Optional[str] = Field(
         default=None,
+        max_length=10,
         description="Lọc theo năm văn bản, ví dụ: 2019, 2020",
     )
 

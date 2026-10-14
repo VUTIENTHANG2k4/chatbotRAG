@@ -61,6 +61,11 @@ class Settings(BaseSettings):
     auto_ingest: bool = True
     enable_admin_api: bool = True
 
+    # ── Rate limit (per client IP, chat endpoints) ─────────────────────────
+    rate_limit_per_minute: int = 10  # 0 = off
+    # Behind Render/Vercel proxies the socket IP is the proxy; read X-Forwarded-For.
+    trust_proxy_headers: bool = False
+
     # ── Chunking ──────────────────────────────────────────────────────────
     # Primary split is by Điều (see app.utils.legal_chunk). These bound a piece
     # after the heading is repeated on every sub-chunk of a long article.
