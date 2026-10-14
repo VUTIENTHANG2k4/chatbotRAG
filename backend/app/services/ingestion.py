@@ -190,6 +190,15 @@ def ingest_file(file_path: Path, overwrite: bool = False) -> dict:
     if not docs:
         return {"status": "error", "reason": "empty_document", "source": filename}
 
+    return index_documents(filename, docs)
+
+
+def index_documents(filename: str, docs: List[Document], replace: bool = False) -> dict:
+    """Chunk loaded pages, embed them and write to Qdrant + BM25.
+
+    With ``replace``, old chunks of ``filename`` are removed only after the new
+    ones are embedded, so a failed rebuild keeps the previous index.
+    """
     file_meta = extract_metadata_from_filename(filename)
     chunks = chunk_documents(docs, file_meta)
 
@@ -198,6 +207,10 @@ def ingest_file(file_path: Path, overwrite: bool = False) -> dict:
 
     texts = [c.page_content for c in chunks]
     embeddings = embed_texts(texts)
+
+    if replace:
+        delete_document_by_source(filename)
+        remove_document_from_index(filename)
 
     # Upsert vector store then BM25; if vector upsert fails we skip BM25
     try:
