@@ -38,11 +38,22 @@ def hybrid_search(
     top_k: Optional[int] = None,
     filter_metadata: Optional[Dict[str, Any]] = None,
 ) -> List[Tuple[Document, float]]:
-    """Hybrid Search = Vector (Qdrant) + Keyword (BM25) + RRF fusion."""
+    """Hybrid Search = Vector (Qdrant) + Keyword (BM25) + RRF fusion.
+
+    Returns [] when no chunk clears ``settings.vector_min_score``. BM25 cannot
+    gate relevance on its own: common words give every question some hits.
+    """
     top_k = top_k or settings.top_k
 
     query_vec = embed_query(query)
-    vector_hits = similarity_search(query_vec, top_k=top_k * 2, filter_metadata=filter_metadata)
+    vector_hits = similarity_search(
+        query_vec,
+        top_k=top_k * 2,
+        filter_metadata=filter_metadata,
+        score_threshold=settings.vector_min_score or None,
+    )
+    if not vector_hits:
+        return []
     bm25_hits = bm25_search(query, top_k=top_k * 2, filter_metadata=filter_metadata)
 
     fused = reciprocal_rank_fusion(

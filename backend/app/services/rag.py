@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, AsyncIterator, Dict, Iterator, List, Optional, Tuple
+import re
+from typing import Any, AsyncIterator, Dict, List, Optional, Tuple
 
 from fastapi.concurrency import run_in_threadpool
 from langchain_core.documents import Document
@@ -14,11 +15,21 @@ from app.services.llm import get_llm
 from app.utils.text import format_source_label, truncate_text
 
 
+REFUSAL_ANSWER = (
+    "Tôi không tìm thấy quy định liên quan trong tài liệu hiện có. "
+    "Bạn nên tham khảo thêm từ cơ quan có thẩm quyền hoặc luật sư."
+)
+# The model words refusals freely ("không tìm thấy quy định cụ thể về X") and
+# may tack on citations; "Tuy nhiên ..." marks a partial answer worth sources.
+_REFUSAL_OPENING = "tôi không tìm thấy quy định"
+_REFUSAL_ADVICE = "tham khảo thêm từ cơ quan có thẩm quyền"
+_PARTIAL_ANSWER = re.compile(r"\btuy nhiên\b")
+
 _SYSTEM_PROMPT = """Bạn là trợ lý pháp luật chuyên sâu về **hợp đồng lao động Việt Nam**, hỗ trợ cả người lao động (NLĐ) và người sử dụng lao động (NSDLĐ) tra cứu, hiểu và đối chiếu quy định pháp luật.
 
 ## Quy tắc bắt buộc (KHÔNG được vi phạm)
 1. **Chỉ trả lời dựa trên [TÀI LIỆU THAM KHẢO]** bên dưới — không bịa đặt, không suy luận ngoài tài liệu.
-2. Nếu thông tin không có trong tài liệu → trả lời: "Tôi không tìm thấy quy định liên quan trong tài liệu hiện có. Bạn nên tham khảo thêm từ cơ quan có thẩm quyền hoặc luật sư."
+2. Nếu thông tin không có trong tài liệu → trả lời: "__REFUSAL__"
 3. **Luôn trích dẫn nguồn** theo dạng [1], [2]... tương ứng với tài liệu trong phần tham khảo.
 4. Trả lời bằng **tiếng Việt**, rõ ràng, chính xác, dùng đúng thuật ngữ pháp lý.
 5. **Giữ nguyên số liệu** có trong tài liệu: số ngày, giờ, tháng, năm, lần, phần trăm, mức tiền. Nếu có nhiều mức theo điều kiện, nêu đủ từng mức kèm điều kiện. Không thay số bằng lời chung chung. Không bịa số khi tài liệu không ghi số.
@@ -36,6 +47,8 @@ Mỗi câu trả lời PHẢI có đủ 3 phần (dùng đúng tiêu đề):
 [TÀI LIỆU THAM KHẢO]
 {context}
 """
+
+_SYSTEM_PROMPT = _SYSTEM_PROMPT.replace("__REFUSAL__", REFUSAL_ANSWER)
 
 _PROMPT = ChatPromptTemplate.from_messages([
     ("system", _SYSTEM_PROMPT),
@@ -87,50 +100,43 @@ def _to_messages(history: Optional[List[Dict[str, str]]]):
     return msgs
 
 
+def is_refusal(answer: str) -> bool:
+    """A full refusal, where showing sources would only mislead."""
+    text = (answer or "").strip().lower()
+    return (
+        text.startswith(_REFUSAL_OPENING)
+        and _REFUSAL_ADVICE in text
+        and not _PARTIAL_ANSWER.search(text)
+    )
+
+
+def _inputs(question: str, context: str, chat_history: Optional[List[Dict[str, str]]]) -> Dict[str, Any]:
+    return {"context": context, "question": question, "chat_history": _to_messages(chat_history)}
+
+
 def ask(
     question: str,
     top_k: int | None = None,
     chat_history: Optional[List[Dict[str, str]]] = None,
     filter_metadata: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """Synchronous RAG: retrieve → generate → return full answer + sources."""
+    """Synchronous RAG: retrieve → generate → return full answer + sources.
+
+    No relevant chunk → refuse without calling the LLM.
+    """
     top_k = top_k or settings.top_k
     docs_with_scores = hybrid_search(question, top_k=top_k, filter_metadata=filter_metadata)
-    context = _build_context(docs_with_scores)
+    if not docs_with_scores:
+        return {"answer": REFUSAL_ANSWER, "sources": [], "query": question}
 
     chain = _PROMPT | get_llm() | StrOutputParser()
-    answer = chain.invoke({
-        "context": context,
-        "question": question,
-        "chat_history": _to_messages(chat_history),
-    })
-
-    return {
-        "answer": answer,
-        "sources": _docs_to_sources(docs_with_scores),
-        "query": question,
-    }
+    answer = chain.invoke(_inputs(question, _build_context(docs_with_scores), chat_history))
+    sources = [] if is_refusal(answer) else _docs_to_sources(docs_with_scores)
+    return {"answer": answer, "sources": sources, "query": question}
 
 
-def ask_stream_sync(
-    question: str,
-    top_k: int | None = None,
-    chat_history: Optional[List[Dict[str, str]]] = None,
-    filter_metadata: Optional[Dict[str, Any]] = None,
-) -> Tuple[Iterator[str], List[Dict[str, Any]]]:
-    """Sync streaming variant: returns (token_iterator, sources)."""
-    top_k = top_k or settings.top_k
-    docs_with_scores = hybrid_search(question, top_k=top_k, filter_metadata=filter_metadata)
-    context = _build_context(docs_with_scores)
-    sources = _docs_to_sources(docs_with_scores)
-
-    chain = _PROMPT | get_llm() | StrOutputParser()
-    stream = chain.stream({
-        "context": context,
-        "question": question,
-        "chat_history": _to_messages(chat_history),
-    })
-    return stream, sources
+async def _single(text: str) -> AsyncIterator[str]:
+    yield text
 
 
 async def ask_stream_async(
@@ -139,18 +145,18 @@ async def ask_stream_async(
     chat_history: Optional[List[Dict[str, str]]] = None,
     filter_metadata: Optional[Dict[str, Any]] = None,
 ) -> Tuple[AsyncIterator[str], List[Dict[str, Any]]]:
-    """Async streaming variant for FastAPI SSE endpoints."""
+    """Async streaming variant for FastAPI SSE endpoints.
+
+    The caller sends sources after the answer and drops them on a refusal
+    (see ``is_refusal``).
+    """
     top_k = top_k or settings.top_k
     docs_with_scores = await run_in_threadpool(
         hybrid_search, question, top_k=top_k, filter_metadata=filter_metadata
     )
-    context = _build_context(docs_with_scores)
-    sources = _docs_to_sources(docs_with_scores)
+    if not docs_with_scores:
+        return _single(REFUSAL_ANSWER), []
 
     chain = _PROMPT | get_llm() | StrOutputParser()
-    stream = chain.astream({
-        "context": context,
-        "question": question,
-        "chat_history": _to_messages(chat_history),
-    })
-    return stream, sources
+    stream = chain.astream(_inputs(question, _build_context(docs_with_scores), chat_history))
+    return stream, _docs_to_sources(docs_with_scores)

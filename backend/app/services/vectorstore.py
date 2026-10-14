@@ -84,6 +84,7 @@ def similarity_search(
     query_vector: List[float],
     top_k: int = 5,
     filter_metadata: Optional[Dict[str, Any]] = None,
+    score_threshold: Optional[float] = None,
 ) -> List[Tuple[Document, float]]:
     from qdrant_client.models import Filter, FieldCondition, MatchValue
 
@@ -95,19 +96,16 @@ def similarity_search(
         ]
         qdrant_filter = Filter(must=conditions)
 
-    try:
-        # qdrant-client >= 1.7 uses query_points(); .search() was removed in 1.14+
-        response = _get_client().query_points(
-            collection_name=settings.qdrant_collection,
-            query=query_vector,
-            limit=top_k,
-            query_filter=qdrant_filter,
-            with_payload=True,
-        )
-        hits = response.points
-    except Exception as e:
-        logger.warning("Vector search failed: %s", e)
-        return []
+    # Errors propagate: an empty result now means "out of scope", so a Qdrant
+    # outage must not look like one. qdrant-client >= 1.14 has no .search().
+    hits = _get_client().query_points(
+        collection_name=settings.qdrant_collection,
+        query=query_vector,
+        limit=top_k,
+        query_filter=qdrant_filter,
+        score_threshold=score_threshold,
+        with_payload=True,
+    ).points
 
     out = []
     for hit in hits:

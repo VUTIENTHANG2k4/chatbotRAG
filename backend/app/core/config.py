@@ -75,6 +75,10 @@ class Settings(BaseSettings):
     # ── Retrieval ─────────────────────────────────────────────────────────
     top_k: int = 5
     rrf_k: int = 60
+    # Cosine floor for the vector branch (0 = off). Golden set 2026-10-14:
+    # in-scope top-1 >= 0.531, out-of-scope 0.296-0.625. No chunk above it
+    # means the question is out of scope and is refused without calling the LLM.
+    vector_min_score: float = 0.45
 
     # ── Upload limits ─────────────────────────────────────────────────────
     max_upload_size_mb: int = 50
